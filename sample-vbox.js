@@ -3,11 +3,18 @@ setDomain("sample.site");
 var hostname = "sample-host";
 var hostIp = "192.168.91.91";
 var nameserver = hostIp;
+var hypervisorType = "virtualbox";
+var ovaUrl = "http://xyz.com/my.ova"
+var networks = []
+
+var userOverridesFile = __DIR__ + "user-overrides.js";
+if(new java.io.File(userOverridesFile).exists()) {
+    include(userOverridesFile);
+}
 	
 // ****** nginx ***********************************
-var imageName = "nginx"
 
-image(imageName, {
+image("nginx", {
 	build: function() {
 		from("dockerfile/ubuntu");
 		run("apt-get update");
@@ -22,24 +29,81 @@ image(imageName, {
 	}
 });
 
-container(imageName, {
-	image: imageName,
+container("nginx", {
+	image: "nginx",
 	host: hostname
 });
+
 // **************************************************
+
+// ****** jenkins ***********************************
+/*
+image("jenkins", {
+	build: function() {
+		from("dockerfile/ubuntu");
+		//No root access
+		run("apt-get install openjdk-7-jre-headless");
+		run("wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
+		run("java -jar jenkins.war");
+		
+	},
+	prepare: function(config, container) {
+		config.webUrl = "http://" + hostname + ".local" + "/jenkins";
+	},
+	configure: function(config) {
+	}
+});
+
+container("jenkins", {
+	image: "jenkins",
+	host: hostname
+});
+*/
+// **************************************************
+
+// ****** nexus *************************************
+/*
+var imageName = "nexus"
+image(imageName, {
+	build: function() {
+		
+	},
+	prepare: function(config, container) {
+	},
+	configure: function(config) {
+	}
+});
+*/
+// **************************************************
+
+// ****** gitolite **********************************
+/*
+var imageName = "gitolite"
+image(imageName, {
+	build: function() {
+		
+	},
+	prepare: function(config, container) {
+	},
+	configure: function(config) {
+	}
+});
+*/
+// **************************************************
+
 
 host(hostname, 
 	{
 		name: hostname,
 		ip: hostIp,
 		vmConfiguration: {
-			//ovaUrl: "http://cron:10080/localweb/vmware/floto-image_2014-10-20T2012_9df76bd.ova",
-			ovaUrl: "file:///home/micha/extra/localweb/vbox/floto-image_2014-11-29T2218_9df76bd.ova",
+			ovaUrl: ovaUrl,
 			numberOfCores: 1,
 			memoryInMB: 2048,
 			hypervisor: {
-				type: "virtualbox"
+				type: hypervisorType
 			},
+			networks: networks
 		},
 		postDeploy: function postDeploy(host) {
 			// Set hostname
@@ -55,7 +119,7 @@ host(hostname,
 					type: "static",
 					address: host.ip,
 					netmask: "255.255.255.0",
- 					nameserver: nameserver
+					nameserver: nameserver
 				},
 				// network for communication with vbox-host
 				{
@@ -63,11 +127,15 @@ host(hostname,
 					type: "dhcp"
 				},
 				// network for communication with rest of the world
-				{
+				
+			];
+			
+			if(hypervisorType == "virtualbox") {
+				interfaces.push({
 					name: "eth2",
 					type: "dhcp"
-				}
-			];
+				});
+			}
 			
 			addTemplate(__DIR__ + "templates/network-interfaces.txt", "/etc/network/interfaces", {
 				interfaces: interfaces
@@ -77,7 +145,11 @@ host(hostname,
 
 			run("ifdown eth0; ifup eth0");
 			run("ifdown eth1; ifup eth1");
-			run("ifdown eth2; ifup eth2");
+			
+			if(hypervisorType == "virtualbox") {
+				run("ifdown eth2; ifup eth2");
+			}
+			
 			
 			run("resolvconf -u");
 			determineIp("hostname -I | cut -d ' ' -f 2");
