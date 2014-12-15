@@ -40,7 +40,7 @@ container("nginx", {
 image("jenkins", {
 	build: function() {
 		from("dockerfile/ubuntu");
-		run("sudo apt-get update");
+		run("apt-get update");
 
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
@@ -48,16 +48,15 @@ image("jenkins", {
 		run("sudo ln -s /usr/lib/jvm/java-7-openjdk-amd64 /usr/java/default");
 
 		//Install jenkins
-		run("cd /tmp/");
 		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 		//Make problems: in Install 'INFO:Jenkins is fully up and running' but nothing happens
 		//Happens the same when typing manually in terminal
 		run("java -jar jenkins.war");
 
 		
-		// ********************** Plug-In's *******************************
-		// **************** always link to latest *************************
-		// ******** load all Plug-In's in jenkins/plugins/ ****************
+		// ************************** Plug-In's ***************************
+		// ******************** always link to latest *********************
+		// ************ load all Plug-In's in jenkins/plugins/ ************
 		run("cd ~/.jenkins/plugins");
 		//Condidtional-buildsteps Plugin
 		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
@@ -150,6 +149,14 @@ image(imageName, {
 		// Add a User
 		run("adduser --system --group --shell /bin/bash --disabled-password git");
 
+		//Sample Project
+		run("sudo mkdir sample-project");
+		run("cd sample-project");
+		run("git init");
+		run("add .");
+		run("git commit -m 'initial commit' -a");
+		run("git remote add origin git@sample-host:sample-project");
+		run("git push origin master:refs/heads/master");
 
 		//TODO: Bewegungsdaten auf Host-Volume
 
