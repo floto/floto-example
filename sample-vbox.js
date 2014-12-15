@@ -49,17 +49,19 @@ image("jenkins", {
 
 		//Install jenkins
 		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
-		//Make problems: in Install 'INFO:Jenkins is fully up and running' but nothing happens
-		//Happens the same when typing manually in terminal
-		run("java -jar jenkins.war");
 
 		
+		// create temp directory for plugins
+		var jenkins_tmp = "~/jenkins_tmp";
+		run("mkdir " + jenkins_tmp);
+		run("cd " + jenkins_tmp);
 		// ************************** Plug-In's ***************************
 		// ******************** always link to latest *********************
 		// ************ load all Plug-In's in jenkins/plugins/ ************
-		run("cd ~/.jenkins/plugins");
+		//run("cd ~/.jenkins/plugins");
+		// Copy all plugins to temp-folder.
 		//Condidtional-buildsteps Plugin
-		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
+		run("wget -P /tmp https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
 		//Git Client Plugin
 		run("wget https://updates.jenkins-ci.org/latest/git-client.hpi");
 		//Git Plugin
@@ -85,7 +87,9 @@ image("jenkins", {
 		
 		//TODO: Bewegungsdaten auf Host-Volume
 
-		cmd("jenkins");
+		// run jenkins
+		
+		cmd("java -jar jenkins.war");
 	},
 	prepare: function(config, container) {
 		config.webUrl = "http://" + hostname + ".local" + "/jenkins";
