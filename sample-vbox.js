@@ -12,13 +12,14 @@ if(new java.io.File(userOverridesFile).exists()) {
     include(userOverridesFile);
 }
 	
-// ****** nginx ***********************************
-
+// **************** nginx *************************
 image("nginx", {
 	build: function() {
 		from("dockerfile/ubuntu");
 		run("apt-get update");
 		run("apt-get install -y nginx");
+
+
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
 		cmd("nginx");
 	},
@@ -33,19 +34,59 @@ container("nginx", {
 	image: "nginx",
 	host: hostname
 });
-
 // **************************************************
 
-// ****** jenkins ***********************************
-/*
+// ******************** jenkins *********************
 image("jenkins", {
 	build: function() {
 		from("dockerfile/ubuntu");
-		//No root access
-		run("apt-get install openjdk-7-jre-headless");
-		run("wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
+		run("sudo apt-get update");
+
+		//Install Java
+		run("sudo apt-get install -y openjdk-7-jre-headless");
+		run("sudo mkdir /usr/java");
+		run("sudo ln -s /usr/lib/jvm/java-7-openjdk-amd64 /usr/java/default");
+
+		//Install jenkins
+		run("cd /tmp/");
+		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
+		//Make problems: in Install 'INFO:Jenkins is fully up and running' but nothing happens
+		//Happens the same when typing manually in terminal
 		run("java -jar jenkins.war");
+
 		
+		// ********************** Plug-In's *******************************
+		// **************** always link to latest *************************
+		// ******** load all Plug-In's in jenkins/plugins/ ****************
+		run("cd ~/.jenkins/plugins");
+		//Condidtional-buildsteps Plugin
+		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
+		//Git Client Plugin
+		run("wget https://updates.jenkins-ci.org/latest/git-client.hpi");
+		//Git Plugin
+		run("wget https://updates.jenkins-ci.org/latest/git.hpi");
+		//Promoted Builds Plugin
+		run("wget https://updates.jenkins-ci.org/latest/promoted-builds.hpi");
+		//Batch Task Plugin
+		run("wget https://updates.jenkins-ci.org/latest/batch-task.hpi");
+		//Maven Plugin (Maven Intergration Plugin not Found)
+		run("wget https://updates.jenkins-ci.org/latest/maven-plugin.hpi");
+		//M2Release Cascade Plugin (Maven Release Plugin not found)
+		run("wget https://updates.jenkins-ci.org/latest/m2release.hpi");
+		//Parameterrized Remote Trigger Plugin 
+		run("wget https://updates.jenkins-ci.org/latest/Parameterized-Remote-Trigger.hpi");
+		//Run Condition Plugin
+		run("wget https://updates.jenkins-ci.org/latest/run-condition.hpi");
+		//SCM API Plugin
+		run("wget https://updates.jenkins-ci.org/latest/scm-api.hpi");
+		//Workspace Cleanup Plugin
+		run("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi");
+		//Artifactory Plugin
+		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi");
+		
+		//TODO: Bewegungsdaten auf Host-Volume
+
+		cmd("jenkins");
 	},
 	prepare: function(config, container) {
 		config.webUrl = "http://" + hostname + ".local" + "/jenkins";
@@ -58,39 +99,73 @@ container("jenkins", {
 	image: "jenkins",
 	host: hostname
 });
-*/
 // **************************************************
 
-// ****** nexus *************************************
-/*
+// ********************* nexus **********************
 var imageName = "nexus"
 image(imageName, {
-	build: function() {
-		
+	build: function() {		
+		from("dockerfile/ubuntu");
+		run("apt-get update");
+
+		// Start by creating new user and group, you will prompted do add additional info.
+		run("adduser nexu");
+		// change to work dir
+		run("cd /tmp");
+		// Then download fresh version of nexus. In my case v2.1.2
+		run("wget www.sonatype.org/downloads/nexus-2.1.2-bundle.tar.gz");
+		// Extract nexus-2.1.2 omly directory from archive. No need of extracting working dir.
+		run("tar xzvf nexus-2.1.2-bundle.tar.gz nexus-2.1.2/");		 
+		// Creating new symlink to avoit version in path.
+		run("ln -s nexus-2.1.2/ nexus");
+
+		//TODO: Bewegungsdaten auf Host-Volume
+
+		cmd("nexus");
+
 	},
 	prepare: function(config, container) {
+		config.webUrl = "http://" + hostname + ".local" + "/nexus";
 	},
 	configure: function(config) {
 	}
 });
-*/
+container("nexus", {
+	image: "nexus",
+	host: hostname
+});
 // **************************************************
 
-// ****** gitolite **********************************
-/*
+// **************** gitolite ************************
 var imageName = "gitolite"
 image(imageName, {
 	build: function() {
-		
+		from("dockerfile/ubuntu");
+		run("apt-get update");
+
+		//Install Git & Gitolite
+		run("apt-get install -y git")
+		run("apt-get install -y gitolite")
+
+		// Add a User
+		run("adduser --system --group --shell /bin/bash --disabled-password git");
+
+
+		//TODO: Bewegungsdaten auf Host-Volume
+
+		cmd("gitolite");
 	},
 	prepare: function(config, container) {
+		config.webUrl = "http://" + hostname + ".local" + "/gitolite";
 	},
 	configure: function(config) {
 	}
 });
-*/
+container("gitolite", {
+	image: "gitolite",
+	host: hostname
+});
 // **************************************************
-
 
 host(hostname, 
 	{
