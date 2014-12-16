@@ -19,6 +19,8 @@ image("nginx", {
 		run("apt-get update");
 		run("apt-get install -y nginx");
 
+		//Config:
+
 
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
 		cmd("nginx");
@@ -50,7 +52,9 @@ image("jenkins", {
 		//Install jenkins
 		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
-		
+		//Add User
+		run("sudo useradd jenkins -m");
+
 		// create temp directory for plugins
 		var jenkins_tmp = "~/jenkins_tmp";
 		run("mkdir " + jenkins_tmp);
@@ -58,37 +62,36 @@ image("jenkins", {
 		// ************************** Plug-In's ***************************
 		// ******************** always link to latest *********************
 		// ************ load all Plug-In's in jenkins/plugins/ ************
-		//run("cd ~/.jenkins/plugins");
 		// Copy all plugins to temp-folder.
-		//Condidtional-buildsteps Plugin
+		// Condidtional-buildsteps Plugin
 		run("wget -P /tmp https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
-		//Git Client Plugin
+		// Git Client Plugin
 		run("wget https://updates.jenkins-ci.org/latest/git-client.hpi");
-		//Git Plugin
+		// Git Plugin
 		run("wget https://updates.jenkins-ci.org/latest/git.hpi");
-		//Promoted Builds Plugin
+		// Promoted Builds Plugin
 		run("wget https://updates.jenkins-ci.org/latest/promoted-builds.hpi");
-		//Batch Task Plugin
+		// Batch Task Plugin
 		run("wget https://updates.jenkins-ci.org/latest/batch-task.hpi");
-		//Maven Plugin (Maven Intergration Plugin not Found)
+		// Maven Plugin (Maven Intergration Plugin not Found)
 		run("wget https://updates.jenkins-ci.org/latest/maven-plugin.hpi");
-		//M2Release Cascade Plugin (Maven Release Plugin not found)
+		// M2Release Cascade Plugin (Maven Release Plugin not found)
 		run("wget https://updates.jenkins-ci.org/latest/m2release.hpi");
-		//Parameterrized Remote Trigger Plugin 
+		// Parameterrized Remote Trigger Plugin 
 		run("wget https://updates.jenkins-ci.org/latest/Parameterized-Remote-Trigger.hpi");
-		//Run Condition Plugin
+		// Run Condition Plugin
 		run("wget https://updates.jenkins-ci.org/latest/run-condition.hpi");
-		//SCM API Plugin
+		// SCM API Plugin
 		run("wget https://updates.jenkins-ci.org/latest/scm-api.hpi");
-		//Workspace Cleanup Plugin
+		// Workspace Cleanup Plugin
 		run("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi");
-		//Artifactory Plugin
+		// Artifactory Plugin
 		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi");
 		
-		//TODO: Bewegungsdaten auf Host-Volume
+		//TODO: Mount Data on Host-Volume
+		//run("sudo docker run -d -P --name jenkins_tmp -v /src/jenkins:/opt/jenkins_tmp ")
 
 		// run jenkins
-		
 		cmd("java -jar jenkins.war");
 	},
 	prepare: function(config, container) {
@@ -122,7 +125,7 @@ image(imageName, {
 		// Creating new symlink to avoit version in path.
 		run("ln -s nexus-2.1.2/ nexus");
 
-		//TODO: Bewegungsdaten auf Host-Volume
+		//TODO: Mount Data on Host-Volume
 
 		cmd("nexus");
 
@@ -144,25 +147,45 @@ var imageName = "gitolite"
 image(imageName, {
 	build: function() {
 		from("dockerfile/ubuntu");
-		run("apt-get update");
+		run("sudo apt-get update");
+		run("sudo apt-get install -y git perl openssh-server");
 
-		//Install Git & Gitolite
-		run("apt-get install -y git")
-		run("apt-get install -y gitolite")
+		//Add User
+		run("sudo useradd git -m");
 
-		// Add a User
-		run("adduser --system --group --shell /bin/bash --disabled-password git");
+		//Install gitolite
+		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
+		run("sudo su - git -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
+
+		//setup with build-in ssh key
+		run("ssh-keygen -f admin -t rsa -N ''");
+		//run("sudo su - git -c '$HOME/bin/gitolite setup -pk /admin.pub'");
+
+		// prevent the perl warning 
+		run("sudo sed  -i 's/AcceptEnv/# \\0/' /etc/ssh/sshd_config");
+
+		// fix fatal: protocol error: bad line length cahracter: Welc
+		run("sudo sed -i 's/session\\s\\+required\\s\\+pam_loginuid.so/# \\0/' /etc/pam.d/sshd");
+
+		run("mkdir /var/run/sshd");
+
+		run("sudo touch start.sh /start.sh");
+		run("sudo chmod a+x /start.sh")
+
+		cmd("/start.sh");
 
 		//Sample Project
-		run("sudo mkdir sample-project");
-		run("cd sample-project");
-		run("git init");
-		run("add .");
-		run("git commit -m 'initial commit' -a");
-		run("git remote add origin git@sample-host:sample-project");
-		run("git push origin master:refs/heads/master");
+		run("sudo mkdir sample");
+		run("cd sample");
+		run("sudo git init");
+		run("sudo git remote add origin git@sample-host:sample");
+		//Need access rights
+		//run("git push origin master:refs/heads/master");
+		
 
-		//TODO: Bewegungsdaten auf Host-Volume
+		// TODO: Mount Data on Host-Volume
+		// On Console no Problem
+		//run("sudo docker run -d -P --name sample -v /src/gitolite:/opt/gitolite ");
 
 		cmd("gitolite");
 	},
