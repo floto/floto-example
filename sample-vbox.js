@@ -6,6 +6,9 @@ var nameserver = hostIp;
 var hypervisorType = "virtualbox";
 var ovaUrl = "http://xyz.com/my.ova"
 var networks = []
+var restPort = 2375;
+
+var containersJson = [];
 
 var userOverridesFile = __DIR__ + "user-overrides.js";
 if(new java.io.File(userOverridesFile).exists()) {
@@ -19,14 +22,13 @@ image("nginx", {
 		run("apt-get update");
 		run("apt-get install -y nginx");
 
-		//Config:
-
+		// TODO: Config:
 
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
 		cmd("nginx");
 	},
 	prepare: function(config, container) {
-		config.webUrl = "http://" + hostname + ".local";
+		config.webUrl = "http://" + hostname + ".local" + "/nginx";
 	},
 	configure: function(config) {
 	}
@@ -34,6 +36,87 @@ image("nginx", {
 
 container("nginx", {
 	image: "nginx",
+	host: hostname
+});
+// **************************************************
+
+// **************** gitolite ************************
+var imageName = "gitolite"
+image(imageName, {
+	build: function() {
+		from("dockerfile/ubuntu");
+		run("sudo apt-get update");
+		run("sudo apt-get install -y git perl openssh-server");
+
+		//Add User
+		run("sudo useradd git -m");
+
+		//Install gitolite
+		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
+		run("sudo su - git -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
+
+		//setup with build-in ssh key
+		run("ssh-keygen -f admin -t rsa -N ''");
+		//run("sudo su - git -c '$HOME/bin/gitolite setup -pk /admin.pub'");
+
+		// prevent the perl warning 
+		run("sudo sed  -i 's/AcceptEnv/# \\0/' /etc/ssh/sshd_config");
+
+		// fix fatal: protocol error: bad line length cahracter: Welc
+		run("sudo sed -i 's/session\\s\\+required\\s\\+pam_loginuid.so/# \\0/' /etc/pam.d/sshd");
+
+		run("mkdir /var/run/sshd");
+
+		run("sudo touch start.sh /start.sh");
+		run("sudo chmod a+x /start.sh")
+
+		cmd("/start.sh");
+
+		//Sample Project
+		run("sudo mkdir sample");
+		run("cd sample");
+		run("sudo git init");
+		run("sudo git remote add origin git@sample-host:sample");
+		//Need access rights
+		//run("git push origin master:refs/heads/master");
+		
+
+		// Mount Data on Host-Volume
+		// TODO: fix Server error: 500 Internal Server Error
+		// We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at "}"
+		/*
+		var theUrl = "http://192.168.18.128:2375/images/json";
+		containersJson = function httpGet(theUrl){
+		    var xmlHttp = null;
+
+		    xmlHttp = new XMLHttpRequest();
+		    xmlHttp.open( "GET", theUrl, false );
+		    xmlHttp.send( null );
+		    return xmlHttp.responseText;
+		};
+
+		//ID of Container in containertsJson
+		var containerId = function(){
+			for(var key in containersJson){
+				if(imageName in key.RepoTags){
+					return key.id;
+				}
+			}
+		};
+		*/
+
+		run("sudo docker run -d -P --name sample -v /var/lib/docker/aufs/mnt/"+ containerId + "/root/sample:/opt/" + imageName );
+
+		cmd("gitolite");
+	},
+	prepare: function(config, container) {
+		config.webUrl = "http://" + hostname + ".local" + "/gitolite";
+	},
+	configure: function(config) {
+	}
+});
+container("gitolite", {
+	image: "gitolite",
 	host: hostname
 });
 // **************************************************
@@ -87,9 +170,12 @@ image("jenkins", {
 		run("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi");
 		// Artifactory Plugin
 		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi");
+		run("cd ..");
 		
-		//TODO: Mount Data on Host-Volume
-		//run("sudo docker run -d -P --name jenkins_tmp -v /src/jenkins:/opt/jenkins_tmp ")
+		// TODO: Mount Data on Host-Volume look at gitolite
+
+		// TODO: Create Buildjob (via Remote access API?)
+		// how to get to jenkins page
 
 		// run jenkins
 		cmd("java -jar jenkins.war");
@@ -125,7 +211,9 @@ image(imageName, {
 		// Creating new symlink to avoit version in path.
 		run("ln -s nexus-2.1.2/ nexus");
 
-		//TODO: Mount Data on Host-Volume
+		// TODO: Configure
+
+		// TODO: Mount Data on Host-Volume look at gitolite
 
 		cmd("nexus");
 
@@ -138,65 +226,6 @@ image(imageName, {
 });
 container("nexus", {
 	image: "nexus",
-	host: hostname
-});
-// **************************************************
-
-// **************** gitolite ************************
-var imageName = "gitolite"
-image(imageName, {
-	build: function() {
-		from("dockerfile/ubuntu");
-		run("sudo apt-get update");
-		run("sudo apt-get install -y git perl openssh-server");
-
-		//Add User
-		run("sudo useradd git -m");
-
-		//Install gitolite
-		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
-		run("sudo su - git -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
-
-		//setup with build-in ssh key
-		run("ssh-keygen -f admin -t rsa -N ''");
-		//run("sudo su - git -c '$HOME/bin/gitolite setup -pk /admin.pub'");
-
-		// prevent the perl warning 
-		run("sudo sed  -i 's/AcceptEnv/# \\0/' /etc/ssh/sshd_config");
-
-		// fix fatal: protocol error: bad line length cahracter: Welc
-		run("sudo sed -i 's/session\\s\\+required\\s\\+pam_loginuid.so/# \\0/' /etc/pam.d/sshd");
-
-		run("mkdir /var/run/sshd");
-
-		run("sudo touch start.sh /start.sh");
-		run("sudo chmod a+x /start.sh")
-
-		cmd("/start.sh");
-
-		//Sample Project
-		run("sudo mkdir sample");
-		run("cd sample");
-		run("sudo git init");
-		run("sudo git remote add origin git@sample-host:sample");
-		//Need access rights
-		//run("git push origin master:refs/heads/master");
-		
-
-		// TODO: Mount Data on Host-Volume
-		// On Console no Problem
-		//run("sudo docker run -d -P --name sample -v /src/gitolite:/opt/gitolite ");
-
-		cmd("gitolite");
-	},
-	prepare: function(config, container) {
-		config.webUrl = "http://" + hostname + ".local" + "/gitolite";
-	},
-	configure: function(config) {
-	}
-});
-container("gitolite", {
-	image: "gitolite",
 	host: hostname
 });
 // **************************************************
