@@ -19,10 +19,12 @@ if(new java.io.File(userOverridesFile).exists()) {
 image("nginx", {
 	build: function() {
 		from("dockerfile/ubuntu");
-		run("apt-get update");
-		run("apt-get install -y nginx");
+		run("sudo apt-get update");
+		run("sudo apt-get install -y nginx");
+		run("sudo apt-get install -y curl");
 
-		// TODO: Config:
+		// TODO: Config:		
+		// Configuration in extra file
 
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
 		cmd("nginx");
@@ -47,6 +49,7 @@ image(imageName, {
 		from("dockerfile/ubuntu");
 		run("sudo apt-get update");
 		run("sudo apt-get install -y git perl openssh-server");
+		expose("8080");
 
 		//Add User
 		run("sudo useradd git -m");
@@ -57,18 +60,17 @@ image(imageName, {
 
 		//setup with build-in ssh key
 		run("ssh-keygen -f admin -t rsa -N ''");
+		// File can not be readed
 		//run("sudo su - git -c '$HOME/bin/gitolite setup -pk /admin.pub'");
 
 		// prevent the perl warning 
 		run("sudo sed  -i 's/AcceptEnv/# \\0/' /etc/ssh/sshd_config");
-
-		// fix fatal: protocol error: bad line length cahracter: Welc
 		run("sudo sed -i 's/session\\s\\+required\\s\\+pam_loginuid.so/# \\0/' /etc/pam.d/sshd");
 
 		run("mkdir /var/run/sshd");
 
 		run("sudo touch start.sh /start.sh");
-		run("sudo chmod a+x /start.sh")
+		run("sudo chmod a+x /start.sh");
 
 		cmd("/start.sh");
 
@@ -76,37 +78,38 @@ image(imageName, {
 		run("sudo mkdir sample");
 		run("cd sample");
 		run("sudo git init");
-		run("sudo git remote add origin git@sample-host:sample");
-		//Need access rights
-		//run("git push origin master:refs/heads/master");
-		
 
 		// Mount Data on Host-Volume
-		// TODO: fix Server error: 500 Internal Server Error
-		// We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at "}"
-		/*
-		var theUrl = "http://192.168.18.128:2375/images/json";
-		containersJson = function httpGet(theUrl){
-		    var xmlHttp = null;
+		// TODO: Get id of container for right directory in host
+		// No access because other domain
+/*
+		var xmlhttp = new XMLHttpRequest();
+		var url = "http://192.168.18.128:2375/images/json";
 
-		    xmlHttp = new XMLHttpRequest();
-		    xmlHttp.open( "GET", theUrl, false );
-		    xmlHttp.send( null );
-		    return xmlHttp.responseText;
-		};
+		xmlhttp.onreadystatechange = function() {
+		if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+			var myArr = JSON.parse(xmlhttp.responseText);
+			myFunction(myArr);
+			}
+		}
+
+		xmlhttp.open("GET", url, true);
+		xmlhttp.send();
+
 
 		//ID of Container in containertsJson
-		var containerId = function(){
-			for(var key in containersJson){
-				if(imageName in key.RepoTags){
-					return key.id;
-				}
+		var containerId = "";
+		function e(){
+			for(var key in xhr){
+				for(var tag in key.RepoTags){
+					if(tag == "gitolite"){
+					containerId =  {key : "Id"};
+					}
+				}		
 			}
-		};
-		*/
-
+		};	
 		run("sudo docker run -d -P --name sample -v /var/lib/docker/aufs/mnt/"+ containerId + "/root/sample:/opt/" + imageName );
-
+*/
 		cmd("gitolite");
 	},
 	prepare: function(config, container) {
@@ -126,6 +129,7 @@ image("jenkins", {
 	build: function() {
 		from("dockerfile/ubuntu");
 		run("apt-get update");
+		expose("8082");
 
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
@@ -199,7 +203,7 @@ image(imageName, {
 	build: function() {		
 		from("dockerfile/ubuntu");
 		run("apt-get update");
-
+		expose("8081");
 		// Start by creating new user and group, you will prompted do add additional info.
 		run("adduser nexu");
 		// change to work dir
@@ -212,6 +216,7 @@ image(imageName, {
 		run("ln -s nexus-2.1.2/ nexus");
 
 		// TODO: Configure
+		// Configuration in extra file
 
 		// TODO: Mount Data on Host-Volume look at gitolite
 
