@@ -23,10 +23,25 @@ image("nginx", {
 		run("sudo apt-get install -y nginx");
 		run("sudo apt-get install -y curl");
 
-		// TODO: Config:		
-		// Configuration in extra file
+		//Install docker-gen, a file-generator for reverse proxy config
+		run('wget https://github.com/jwilder/docker-gen/releases/download/0.3.6/docker-gen-linux-amd64-0.3.6.tar.gz');
+		run('tar xvzf docker-gen-linux-amd64-0.3.6.tar.gz');
 
+		//Create Template for reverse proxy config an run it
+		//Template from: http://jasonwilder.com/blog/2014/03/25/automated-nginx-reverse-proxy-for-docker/
+		// TODO: Run Template every time a container is created or deleted
+		// Not running jet
+		/*run('mkdir templates');
+		run('cd templates');
+		run('touch nginx.tmpl');
+		run('echo "{{ range $host, $containers := groupBy $ "Env.VIRTUAL_HOST" }}\n upstream {{ $host }} {\n {{ range $index, $value := $containers }}\n  {{ with $address := index $value.Addresses 0 }}\n server {{ $address.IP }}:{{ $address.Port }};\n{{ end }}\n{{ end }}}\n server {\n #ssl_certificate /etc/nginx/certs/demo.pem;\n#ssl_certificate_key /etc/nginx/certs/demo.key;\ngzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;\nserver_name {{ $host }};\n location / {proxy_pass http://{{ $host }};\ninclude /etc/nginx/proxy_params;}}\n{{ end }}" > nginx.tmpl');
+		run('docker-gen -only-exposed -watch -notify "/etc/init.d/nginx reload" templates/nginx.tmpl /etc/nginx/sites-enabled/default');
+*/
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
+
+		// Mount Data on Host-Volume
+		volume("/usr/local/nginx","/opt/nginx");
+
 		cmd("nginx");
 	},
 	prepare: function(config, container) {
@@ -49,7 +64,7 @@ image(imageName, {
 		from("dockerfile/ubuntu");
 		run("sudo apt-get update");
 		run("sudo apt-get install -y git perl openssh-server");
-		expose("8080");
+		expose("8082");
 
 		//Add User
 		run("sudo useradd git -m");
@@ -74,42 +89,14 @@ image(imageName, {
 
 		cmd("/start.sh");
 
-		//Sample Project
+		// Sample Project
 		run("sudo mkdir sample");
 		run("cd sample");
 		run("sudo git init");
 
 		// Mount Data on Host-Volume
-		// TODO: Get id of container for right directory in host
-		// No access because other domain
-/*
-		var xmlhttp = new XMLHttpRequest();
-		var url = "http://192.168.18.128:2375/images/json";
+		volume("/usr/local/gitolite","/opt/gitolite");
 
-		xmlhttp.onreadystatechange = function() {
-		if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-			var myArr = JSON.parse(xmlhttp.responseText);
-			myFunction(myArr);
-			}
-		}
-
-		xmlhttp.open("GET", url, true);
-		xmlhttp.send();
-
-
-		//ID of Container in containertsJson
-		var containerId = "";
-		function e(){
-			for(var key in xhr){
-				for(var tag in key.RepoTags){
-					if(tag == "gitolite"){
-					containerId =  {key : "Id"};
-					}
-				}		
-			}
-		};	
-		run("sudo docker run -d -P --name sample -v /var/lib/docker/aufs/mnt/"+ containerId + "/root/sample:/opt/" + imageName );
-*/
 		cmd("gitolite");
 	},
 	prepare: function(config, container) {
@@ -129,7 +116,6 @@ image("jenkins", {
 	build: function() {
 		from("dockerfile/ubuntu");
 		run("apt-get update");
-		expose("8082");
 
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
@@ -175,11 +161,14 @@ image("jenkins", {
 		// Artifactory Plugin
 		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi");
 		run("cd ..");
-		
-		// TODO: Mount Data on Host-Volume look at gitolite
 
-		// TODO: Create Buildjob (via Remote access API?)
-		// how to get to jenkins page
+		//for main webinterface
+		expose("8080");
+
+		// Mount data 
+		volume("/usr/local/jenkins","/opt/jenkins");
+
+		// TODO: Create Buildjob 
 
 		// run jenkins
 		cmd("java -jar jenkins.war");
@@ -202,25 +191,33 @@ var imageName = "nexus"
 image(imageName, {
 	build: function() {		
 		from("dockerfile/ubuntu");
+
+		//Add User
+		run("sudo useradd nexus -m");
+
 		run("apt-get update");
+		run("apt-get install -y default-jre ");
+		run("apt-get install -y wget");
+
+		run("cd /usr/local");
+		run("wget http://download.sonatype.com/nexus/oss/nexus-2.10.0-02-bundle.tar.gz ");
+		run('tar xvzf nexus-2.10.0-02-bundle.tar.gz ');
+
+		run("sudo ln -s nexus-2.10.0-02 nexus");
+		run("sudo rm -rf sonatype-work/nexus");
+		run("sudo ln -s nexus sonatype-work/nexus");
+
+		volume("/nexus", "");
+
 		expose("8081");
-		// Start by creating new user and group, you will prompted do add additional info.
-		run("adduser nexu");
-		// change to work dir
-		run("cd /tmp");
-		// Then download fresh version of nexus. In my case v2.1.2
-		run("wget www.sonatype.org/downloads/nexus-2.1.2-bundle.tar.gz");
-		// Extract nexus-2.1.2 omly directory from archive. No need of extracting working dir.
-		run("tar xzvf nexus-2.1.2-bundle.tar.gz nexus-2.1.2/");		 
-		// Creating new symlink to avoit version in path.
-		run("ln -s nexus-2.1.2/ nexus");
 
-		// TODO: Configure
-		// Configuration in extra file
+		env("CONTEXT_PATH", "/nexus");
 
-		// TODO: Mount Data on Host-Volume look at gitolite
+		// Mount Data on Host-Volume
+		volume("/usr/local/jenkins","/opt/jenkins");
 
-		cmd("nexus");
+		// run
+		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
 
 	},
 	prepare: function(config, container) {
