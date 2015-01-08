@@ -23,22 +23,16 @@ image("nginx", {
 		run("sudo apt-get install -y nginx");
 		run("sudo apt-get install -y curl");
 
-		//Install docker-gen, a file-generator for reverse proxy config
-		run('wget https://github.com/jwilder/docker-gen/releases/download/0.3.6/docker-gen-linux-amd64-0.3.6.tar.gz');
-		run('tar xvzf docker-gen-linux-amd64-0.3.6.tar.gz');
+		// Change Config
+		//TODO: It must be an Template in floto/server
+		//  Put Config-File to Container
+		run('cd /etc/nginx/sites-available/');
+		run('touch reverse-proxy.conf');
+		addTemplate(__DIR__ + "templates/nginxreverse.conf", "/etc/nginx/sites-available/nginxreverse.conf", "");
 
-		//Create Template for reverse proxy config an run it
-		//Template from: http://jasonwilder.com/blog/2014/03/25/automated-nginx-reverse-proxy-for-docker/
-		// TODO: Run Template every time a container is created or deleted
-		// Not running jet
-		/*run('mkdir templates');
-		run('cd templates');
-		run('touch nginx.tmpl');
-		run('echo "{{ range $host, $containers := groupBy $ "Env.VIRTUAL_HOST" }}\n upstream {{ $host }} {\n {{ range $index, $value := $containers }}\n  {{ with $address := index $value.Addresses 0 }}\n server {{ $address.IP }}:{{ $address.Port }};\n{{ end }}\n{{ end }}}\n server {\n #ssl_certificate /etc/nginx/certs/demo.pem;\n#ssl_certificate_key /etc/nginx/certs/demo.key;\ngzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;\nserver_name {{ $host }};\n location / {proxy_pass http://{{ $host }};\ninclude /etc/nginx/proxy_params;}}\n{{ end }}" > nginx.tmpl');
-		run('docker-gen -only-exposed -watch -notify "/etc/init.d/nginx reload" templates/nginx.tmpl /etc/nginx/sites-enabled/default');
-*/
+
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
-
+		expose('80');
 		// Mount Data on Host-Volume
 		volume("/usr/local/nginx","/opt/nginx");
 
@@ -50,7 +44,6 @@ image("nginx", {
 	configure: function(config) {
 	}
 });
-
 container("nginx", {
 	image: "nginx",
 	host: hostname
@@ -64,8 +57,7 @@ image(imageName, {
 		from("dockerfile/ubuntu");
 		run("sudo apt-get update");
 		run("sudo apt-get install -y git perl openssh-server");
-		expose("8082");
-
+		
 		//Add User
 		run("sudo useradd git -m");
 
@@ -94,6 +86,7 @@ image(imageName, {
 		run("cd sample");
 		run("sudo git init");
 
+		expose("8082");
 		// Mount Data on Host-Volume
 		volume("/usr/local/gitolite","/opt/gitolite");
 
@@ -179,7 +172,6 @@ image("jenkins", {
 	configure: function(config) {
 	}
 });
-
 container("jenkins", {
 	image: "jenkins",
 	host: hostname
