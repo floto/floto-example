@@ -28,7 +28,7 @@ image("nginx", {
 		//  Put Config-File to Container
 		run('cd /etc/nginx/sites-available/');
 		run('touch reverse-proxy.conf');
-		addTemplate(__DIR__ + "templates/nginxreverse.conf", "/etc/nginx/sites-available/nginxreverse.conf", "");
+		addTemplate(__DIR__ + "templates/nginxreverse.conf", "/etc/nginx/sites-available/nginxreverse.conf", {hostname : hostname});
 
 
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
@@ -115,6 +115,8 @@ image("jenkins", {
 		run("sudo mkdir /usr/java");
 		run("sudo ln -s /usr/lib/jvm/java-7-openjdk-amd64 /usr/java/default");
 
+		run('cd /root');
+
 		//Install jenkins
 		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
@@ -122,7 +124,9 @@ image("jenkins", {
 		run("sudo useradd jenkins -m");
 
 		// create temp directory for plugins
-		var jenkins_tmp = "~/jenkins_tmp";
+		run('mkdir .jenkins');
+		run('cd .jenkins');
+		var jenkins_tmp = "/plugins";
 		run("mkdir " + jenkins_tmp);
 		run("cd " + jenkins_tmp);
 		// ************************** Plug-In's ***************************
@@ -153,17 +157,40 @@ image("jenkins", {
 		run("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi");
 		// Artifactory Plugin
 		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi");
+		//Back to .jenkins
 		run("cd ..");
 
 		//for main webinterface
 		expose("8080");
 
-		// Mount data 
+		// Mount data TODO: Change
 		volume("/usr/local/jenkins","/opt/jenkins");
 
 		// TODO: Create Buildjob 
+		run('mkdir jobs');
+		run('cd jobs');
+		run('mkdir test-job');
+		run('cd test-job');
+		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/jenkins/jobs/test-job/config.xml","");
 
-		// run jenkins
+		run('mkdir builds');
+		run('cd builds');
+		run('touch lastFailedBuild');
+		run('touch lastStableBuild');
+		run('touch lastSuccessfulBuild');
+		run('touch lastUnstableBuild');
+		run('touch lastUnsuccessfulBuild');
+		//Back to test-job
+		run('cd ..');
+		//Back to jobs
+		run('cd ..');
+		//back to .jenkins
+		run('cd ..');
+		//back to root
+		run('cd ..');
+
+
+		// run jenkins	
 		cmd("java -jar jenkins.war");
 	},
 	prepare: function(config, container) {
