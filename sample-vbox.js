@@ -50,56 +50,51 @@ container("nginx", {
 });
 // **************************************************
 
-// **************** gitolite ************************
-var imageName = "gitolite"
+// ********************* nexus **********************
+var imageName = "nexus"
 image(imageName, {
-	build: function() {
+	build: function() {		
 		from("dockerfile/ubuntu");
-		run("sudo apt-get update");
-		run("sudo apt-get install -y git perl openssh-server");
-		
+
 		//Add User
-		run("sudo useradd -d /home/gitolite -m --password gitolite gitolite");
+		run("sudo useradd -d /home/nexus -m --password nexus nexus");
 
-		//Install gitolite
-		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
-		run("sudo su - git -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
+		run("apt-get update");
+		run("apt-get install -y default-jre ");
+		run("apt-get install -y wget");
 
-		//setup with build-in ssh key
-		run("ssh-keygen -f admin -t rsa -N ''");
-		// File can not be readed
-		//run("sudo su - git -c '$HOME/bin/gitolite setup -pk /admin.pub'");
+		run("cd /usr/local");
+		run("wget http://download.sonatype.com/nexus/oss/nexus-2.10.0-02-bundle.tar.gz ");
+		run('tar xvzf nexus-2.10.0-02-bundle.tar.gz ');
 
-		// prevent the perl warning 
-		run("sudo sed  -i 's/AcceptEnv/# \\0/' /etc/ssh/sshd_config");
-		run("sudo sed -i 's/session\\s\\+required\\s\\+pam_loginuid.so/# \\0/' /etc/pam.d/sshd");
+		run("sudo ln -s nexus-2.10.0-02 nexus");
+		run("sudo rm -rf sonatype-work/nexus");
+		run("sudo ln -s nexus sonatype-work/nexus");
 
-		run("mkdir /var/run/sshd");
+		volume("/nexus", "");
 
-		run("sudo touch start.sh /start.sh");
-		run("sudo chmod a+x /start.sh");
+		expose("8081");
 
-		cmd("/start.sh");
+		env("CONTEXT_PATH", "/nexus");
 
-		// Sample Project
-		run("sudo mkdir sample");
-		run("cd sample"); 
-		run("sudo git init");
+		// TODO: Make Key-Pair for Jenkins
+		//run('sudo -u nexus ssh-keygen');
 
-		expose("8082");
 		// Mount Data on Host-Volume
-		volume("/usr/local/gitolite","/opt/gitolite");
+		volume("/usr/local/nexus","/opt/nexus");
 
-		cmd("gitolite");
+		// run
+		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
+
 	},
 	prepare: function(config, container) {
-		config.webUrl = "http://" + hostname + ".local" + "/gitolite";
+		config.webUrl = "http://" + hostname + ".local" + "/nexus";
 	},
 	configure: function(config) {
 	}
 });
-container("gitolite", {
-	image: "gitolite",
+container("nexus", {
+	image: "nexus",
 	host: hostname
 });
 // **************************************************
@@ -125,7 +120,7 @@ image("jenkins", {
 		//Install jenkins
 		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
-		// create temp directory for plugins
+		// create temp directory for plugins (may not needed)
 		//run('sudo mkdir .jenkins');
 		//run('cd .jenkins');
 		var jenkins_tmp = "plugins";
@@ -165,7 +160,7 @@ image("jenkins", {
 		//for main webinterface
 		expose("8080");
 
-		// TODO: Create Buildjob 
+		// Create Buildjob 
 		run('sudo mkdir jobs');
 		run('cd jobs');
 		run('sudo mkdir test-job');
@@ -187,6 +182,12 @@ image("jenkins", {
 		//Directory tmp cache for git needed by git-plugin
 		run('mkdir git');
 
+		//TODO: Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects and copy public key to host
+		//run('sudo -u jenkins ssh-keygen');
+		//run('docker cp id_rsa.pub /usr/local/jenkins/');
+		//TODO: Add Public-Key from nexus to store successful builds
+		//run('docker add /usr/local/nexus/id_rsa.pub ~/.ssh');
+
 		// Mount data 
 		volume("/usr/local/jenkins","~/.");
 
@@ -205,48 +206,60 @@ container("jenkins", {
 });
 // **************************************************
 
-// ********************* nexus **********************
-var imageName = "nexus"
+// **************** gitolite ************************
+var imageName = "gitolite"
 image(imageName, {
-	build: function() {		
+	build: function() {
 		from("dockerfile/ubuntu");
-
+		run("sudo apt-get update");
+		run("sudo apt-get install -y git perl openssh-server");
+		
 		//Add User
-		run("sudo useradd -d /home/nexus -m --password nexus nexus");
+		run("sudo useradd -d /home/gitolite -m --password gitolite gitolite");
 
-		run("apt-get update");
-		run("apt-get install -y default-jre ");
-		run("apt-get install -y wget");
+		//Install gitolite
+		///(maybe with runAsUser)
+		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
+		run("sudo su - git -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
 
-		run("cd /usr/local");
-		run("wget http://download.sonatype.com/nexus/oss/nexus-2.10.0-02-bundle.tar.gz ");
-		run('tar xvzf nexus-2.10.0-02-bundle.tar.gz ');
+		//setup with build-in ssh key
+		run("ssh-keygen -f admin -t rsa -N ''");
+		// File can not be readed
+		//run("sudo su - git -c '$HOME/bin/gitolite setup -pk /admin.pub'");
 
-		run("sudo ln -s nexus-2.10.0-02 nexus");
-		run("sudo rm -rf sonatype-work/nexus");
-		run("sudo ln -s nexus sonatype-work/nexus");
+		// prevent the perl warning 
+		run("sudo sed  -i 's/AcceptEnv/# \\0/' /etc/ssh/sshd_config");
+		run("sudo sed -i 's/session\\s\\+required\\s\\+pam_loginuid.so/# \\0/' /etc/pam.d/sshd");
 
-		volume("/nexus", "");
+		run("mkdir /var/run/sshd");
 
-		expose("8081");
+		run("sudo touch start.sh /start.sh");
+		run("sudo chmod a+x /start.sh");
 
-		env("CONTEXT_PATH", "/nexus");
+		cmd("/start.sh");
 
+		// Sample Project
+		run("sudo mkdir sample");
+		run("cd sample"); 
+		run("sudo git init");
+
+		//TODO: Add Public-Key from Jenkins (key is on /usr/local/jenkins/id_rsa.pub | see jenkis config)
+		//run('docker add /usr/local/jenkins/id_rsa.pub ~/.ssh');
+
+		expose("8082");
 		// Mount Data on Host-Volume
-		volume("/usr/local/nexus","/opt/nexus");
+		volume("/usr/local/gitolite","/opt/gitolite");
 
-		// run
-		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
-
+		cmd("gitolite");
 	},
 	prepare: function(config, container) {
-		config.webUrl = "http://" + hostname + ".local" + "/nexus";
+		config.webUrl = "http://" + hostname + ".local" + "/gitolite";
 	},
 	configure: function(config) {
 	}
 });
-container("nexus", {
-	image: "nexus",
+container("gitolite", {
+	image: "gitolite",
 	host: hostname
 });
 // **************************************************
