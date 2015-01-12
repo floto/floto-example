@@ -115,26 +115,28 @@ image("jenkins", {
 		run("sudo mkdir /usr/java");
 		run("sudo ln -s /usr/lib/jvm/java-7-openjdk-amd64 /usr/java/default");
 
-		run('cd /root');
+		//Add User
+		run("sudo useradd -d /home/jenkins -m --password jenkins jenkins");
+		run('export JENKINS_HOME=~/.');
+
+		//Change to home directory
+		run("cd ~/.")
 
 		//Install jenkins
 		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
-		//Add User
-		run("sudo useradd jenkins -m");
-
 		// create temp directory for plugins
-		run('mkdir .jenkins');
-		run('cd .jenkins');
-		var jenkins_tmp = "/plugins";
-		run("mkdir " + jenkins_tmp);
+		//run('sudo mkdir .jenkins');
+		//run('cd .jenkins');
+		var jenkins_tmp = "plugins";
+		run("sudo mkdir " + jenkins_tmp);
 		run("cd " + jenkins_tmp);
 		// ************************** Plug-In's ***************************
 		// ******************** always link to latest *********************
 		// ************ load all Plug-In's in jenkins/plugins/ ************
 		// Copy all plugins to temp-folder.
 		// Condidtional-buildsteps Plugin
-		run("wget -P /tmp https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
+		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
 		// Git Client Plugin
 		run("wget https://updates.jenkins-ci.org/latest/git-client.hpi");
 		// Git Plugin
@@ -163,15 +165,14 @@ image("jenkins", {
 		//for main webinterface
 		expose("8080");
 
-		// Mount data TODO: Change
-		volume("/usr/local/jenkins","/opt/jenkins");
-
 		// TODO: Create Buildjob 
-		run('mkdir jobs');
+		run('sudo mkdir jobs');
 		run('cd jobs');
-		run('mkdir test-job');
+		run('sudo mkdir test-job');
+		run('sudo chmod 777 test-job');
 		run('cd test-job');
-		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/jenkins/jobs/test-job/config.xml","");
+		//Copy Config file to container
+		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "~/jobs/test-job/config.xml","");
 
 		run('mkdir builds');
 		run('cd builds');
@@ -186,9 +187,11 @@ image("jenkins", {
 		run('cd ..');
 		//back to .jenkins
 		run('cd ..');
-		//back to root
+		//back to jenkins
 		run('cd ..');
 
+		// Mount data 
+		volume("/usr/local/jenkins","~/.");
 
 		// run jenkins	
 		cmd("java -jar jenkins.war");
@@ -212,7 +215,7 @@ image(imageName, {
 		from("dockerfile/ubuntu");
 
 		//Add User
-		run("sudo useradd nexus -m");
+		run("sudo useradd -d /home/nexus -m --password nexus nexus");
 
 		run("apt-get update");
 		run("apt-get install -y default-jre ");
@@ -233,7 +236,7 @@ image(imageName, {
 		env("CONTEXT_PATH", "/nexus");
 
 		// Mount Data on Host-Volume
-		volume("/usr/local/jenkins","/opt/jenkins");
+		volume("/usr/local/nexus","/opt/nexus");
 
 		// run
 		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
