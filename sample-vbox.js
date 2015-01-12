@@ -59,7 +59,7 @@ image(imageName, {
 		run("sudo apt-get install -y git perl openssh-server");
 		
 		//Add User
-		run("sudo useradd git -m");
+		run("sudo useradd -d /home/gitolite -m --password gitolite gitolite");
 
 		//Install gitolite
 		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
@@ -83,7 +83,7 @@ image(imageName, {
 
 		// Sample Project
 		run("sudo mkdir sample");
-		run("cd sample");
+		run("cd sample"); 
 		run("sudo git init");
 
 		expose("8082");
@@ -181,14 +181,11 @@ image("jenkins", {
 		run('touch lastSuccessfulBuild');
 		run('touch lastUnstableBuild');
 		run('touch lastUnsuccessfulBuild');
-		//Back to test-job
-		run('cd ..');
-		//Back to jobs
-		run('cd ..');
-		//back to .jenkins
-		run('cd ..');
-		//back to jenkins
-		run('cd ..');
+		//Back to root
+		run('cd ');
+
+		//Directory tmp cache for git needed by git-plugin
+		run('mkdir git');
 
 		// Mount data 
 		volume("/usr/local/jenkins","~/.");
