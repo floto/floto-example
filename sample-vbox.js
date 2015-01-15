@@ -296,7 +296,9 @@ host(hostname,
 				// network for communication with vbox-host
 				{
 					name: "eth1",
-					type: "dhcp"
+					type: "static",
+					address: "169.254.103.51",
+					netmask: "255.255.255.0"
 				},
 				// network for communication with rest of the world				
 			];
@@ -311,23 +313,23 @@ host(hostname,
 			addTemplate(__DIR__ + "templates/network-interfaces.txt", "/etc/network/interfaces", {
 				interfaces: interfaces
 			});
+
 			//run("echo -e 'nameserver " + site.dns.ip + "\n' > /etc/resolvconf/resolv.conf.d/head");
 			run("echo -e 'search " + site.domainName + "\n' > /etc/resolvconf/resolv.conf.d/base");
 
 			run("ifdown eth0; ifup eth0");
-			run("ifdown eth1");
-			run("ifup eth1"); 
+			run("ifdown eth1; ifup eth1"); 
 			
 			if(hypervisorType == "virtualbox") {
 				run("ifdown eth2; ifup eth2");
 			}			
-			
-			run("resolvconf -u");
-			//Zugriff verweigert
-			determineIp("hostname -I | cut -d ' ' -f2");
 
+			run("resolvconf -u");
+			
+			determineIp("hostname -I | cut -d ' ' -f2");
+			
 			// Restart docker so it uses our nameserver config
-			run("service docker restart");
+			run("sudo service docker restart");
 
 			// MDNS/Zeroconf w/ avahi
 			run('echo "AVAHI_DAEMON_DETECT_LOCAL=0\nAVAHI_DAEMON_START=1\n" > /etc/default/avahi-daemon');
@@ -366,7 +368,9 @@ host(hostname,
 			run("MODE=start " + updateIssuePath);
 		},
 		reconfigure: function reconfigure(host, config) {
-			determineIp("hostname -I | cut -d ' ' -f 2");
+			if(hypervisorType != "virtualbox") {
+				determineIp("hostname -I | cut -d ' ' -f2");
+			}
 
 			// set new http proxy
 			addTemplate(__DIR__ + "templates/docker-reconfigure.sh", "/tmp/docker-reconfigure.sh", {httpProxy: config.httpProxy});
