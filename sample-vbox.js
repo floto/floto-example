@@ -77,11 +77,11 @@ image(imageName, {
 
 		env("CONTEXT_PATH", "/nexus");
 
-		// TODO: Make Key-Pair for Jenkins
-		//run('sudo -u nexus ssh-keygen');
+		// Make Key-Pair for Jenkins-communication
+		run('ssh-keygen -t rsa -C "nexus@nexus" -f "nexus" -P "12345"');
 
 		// Mount Data on Host-Volume
-		volume("/usr/local/nexus","/opt/nexus");
+		volume("/usr/local/nexus","~/.");
 
 		// run
 		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
@@ -182,11 +182,10 @@ image("jenkins", {
 		//Directory tmp cache for git needed by git-plugin
 		run('mkdir git');
 
-		//TODO: Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects and copy public key to host
-		//run('sudo -u jenkins ssh-keygen');
-		//run('docker cp id_rsa.pub /usr/local/jenkins/');
+		//TODO: Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects
+		run('ssh-keygen -t rsa -C "jenkins@jenkins" -f "jenkins" -P "12345"');
 		//TODO: Add Public-Key from nexus to store successful builds
-		//run('docker add /usr/local/nexus/id_rsa.pub ~/.ssh');
+		run('docker add /usr/local/nexus/nexus.pub ~/.ssh');
 
 		// Mount data 
 		volume("/usr/local/jenkins","~/.");
@@ -218,7 +217,6 @@ image(imageName, {
 		run("sudo useradd -d /home/gitolite -m --password gitolite gitolite");
 
 		//Install gitolite
-		///(maybe with runAsUser)
 		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
 		run("sudo su - git -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
 
@@ -244,7 +242,7 @@ image(imageName, {
 		run("sudo git init");
 
 		//TODO: Add Public-Key from Jenkins (key is on /usr/local/jenkins/id_rsa.pub | see jenkis config)
-		//run('docker add /usr/local/jenkins/id_rsa.pub ~/.ssh');
+		run('docker add /usr/local/jenkins/jenkins.pub ~/.ssh');
 
 		expose("8082");
 		// Mount Data on Host-Volume
@@ -279,7 +277,9 @@ host(hostname,
 		},
 		postDeploy: function postDeploy(host) {
 			// Set hostname
-			run("echo " + host.name + " > /etc/hostname && sudo start hostname && (pkill -f \"/sbin/getty.*tty[1-6]\" || true) ");
+			run("echo " + host.name + " > /etc/hostname ");
+			run("sudo start hostname ");
+			run("pkill -f \"/sbin/getty.*tty[1-6]\" || true");
 			run("sed -i 's/^127.0.1.1.*/127.0.1.1   " + host.name + "." + site.domainName + "   " + host.name + "/' /etc/hosts")
 
 
@@ -298,8 +298,7 @@ host(hostname,
 					name: "eth1",
 					type: "dhcp"
 				},
-				// network for communication with rest of the world
-				
+				// network for communication with rest of the world				
 			];
 			
 			if(hypervisorType == "virtualbox") {
@@ -316,15 +315,16 @@ host(hostname,
 			run("echo -e 'search " + site.domainName + "\n' > /etc/resolvconf/resolv.conf.d/base");
 
 			run("ifdown eth0; ifup eth0");
-			run("ifdown eth1; ifup eth1");
+			run("ifdown eth1");
+			run("ifup eth1"); 
 			
 			if(hypervisorType == "virtualbox") {
 				run("ifdown eth2; ifup eth2");
-			}
-			
+			}			
 			
 			run("resolvconf -u");
-			determineIp("hostname -I | cut -d ' ' -f 2");
+			//Zugriff verweigert
+			determineIp("hostname -I | cut -d ' ' -f2");
 
 			// Restart docker so it uses our nameserver config
 			run("service docker restart");
