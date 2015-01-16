@@ -4,9 +4,12 @@ var hostname = "sample-host";
 var hostIp = "192.168.91.91";
 var nameserver = hostIp;
 var hypervisorType = "virtualbox";
-var ovaUrl = "http://xyz.com/my.ova"
-var networks = []
+var ovaUrl = "http://xyz.com/my.ova";
+var networks = [];
 var restPort = 2375;
+
+//TODO: do a query for this
+var system = "windows";
 
 var containersJson = [];
 
@@ -282,7 +285,6 @@ host(hostname,
 			run("pkill -f \"/sbin/getty.*tty[1-6]\" || true");
 			run("sed -i 's/^127.0.1.1.*/127.0.1.1   " + host.name + "." + site.domainName + "   " + host.name + "/' /etc/hosts")
 
-
 			// Configure network
 			var interfaces = [
 			    // internal network
@@ -292,24 +294,60 @@ host(hostname,
 					address: host.ip,
 					netmask: "255.255.255.0",
 					nameserver: nameserver
-				},
-				// network for communication with vbox-host
-				{
-					name: "eth1",
-					type: "static",
-					address: "169.254.103.51",
-					netmask: "255.255.255.0"
-				},
-				// network for communication with rest of the world				
+				}					
 			];
-			
-			if(hypervisorType == "virtualbox") {
+
+			if(hypervisorType != "virtualbox"){
 				interfaces.push({
+					name: "eth1",
+					type: "dhcp"
+				});
+			}else{
+				interfaces.push({
+					// network for communication with rest of the world	
 					name: "eth2",
 					type: "dhcp"
 				});
+				if(system = "windows"){
+					// network for communication with vbox-host
+					var HostOnlyAdapterAddress;
+					var HostOnlyAdapterNetmast;
+					var VMAddress;
+					
+					//TODO: change from static to dhcp
+					//1. Get IP and Mask of Host-Onyl-Adapter 
+					//run on cmd: netsh interface ip show config name="VirtualBox Host-Only Hetwork" | findstr "IP Address"
+					HostOnlyAdapterAddress = "169.254.103.50";
+					// and netsh interface ip show config name="VirtualBox Host-Only Hetwork" | findstr "Subnet Prefix"
+					HostOnlyAdapterNetmast = "255.255.0.0";
+					
+					//2. Build IP-Address with random numbers between 2 and 254 in the editable part of ip
+					//3. Check if ip is unique
+					//4. Retrun to 2. if not unique
+					//5. Set IP as 'static'
+					//var isUnique = "false";
+					//while(isUnique == "false"){
+						//get 
+					//}
+
+					VMAddress = "169.254.104.51";
+					//6. finally push interface
+					interfaces.push({		
+					name: "eth1",
+					type: "static",
+					address: VMAddress,
+					netmask: HostOnlyAdapterNetmast
+				});
+				}else{
+					interfaces.push({
+					// network for communication with vbox-host
+					name: "eth1",
+					type: "dhcp"
+				});
+				}			
+				
 			}
-			
+
 			addTemplate(__DIR__ + "templates/network-interfaces.txt", "/etc/network/interfaces", {
 				interfaces: interfaces
 			});
