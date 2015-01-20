@@ -81,7 +81,7 @@ image(imageName, {
 		env("CONTEXT_PATH", "/nexus");
 
 		// Make Key-Pair for Jenkins-communication
-		run('ssh-keygen -t rsa -C "nexus@nexus" -f "nexus" -P "12345"');
+		//run('ssh-keygen -t rsa -C "nexus@nexus" -f "nexus" -P "12345"');
 
 		// Mount Data on Host-Volume
 		volume("/usr/local/nexus","~/.");
@@ -186,9 +186,9 @@ image("jenkins", {
 		run('mkdir git');
 
 		//TODO: Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects
-		run('ssh-keygen -t rsa -C "jenkins@jenkins" -f "jenkins" -P "12345"');
+		//run('ssh-keygen -t rsa -C "jenkins@jenkins" -f "jenkins" -P "12345"');
 		//TODO: Add Public-Key from nexus to store successful builds
-		run('docker add /usr/local/nexus/nexus.pub ~/.ssh');
+		//run('docker add /usr/local/nexus/nexus.pub ~/.ssh');
 
 		// Mount data 
 		volume("/usr/local/jenkins","~/.");
@@ -220,8 +220,8 @@ image(imageName, {
 		run("sudo useradd -d /home/gitolite -m --password gitolite gitolite");
 
 		//Install gitolite
-		run("sudo su - git -c 'git clone git://github.com/sitaramc/gitolite'");
-		run("sudo su - git -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
+		run("sudo su - gitolite -c 'git clone git://github.com/sitaramc/gitolite'");
+		run("sudo su - gitolite -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
 
 		//setup with build-in ssh key
 		run("ssh-keygen -f admin -t rsa -N ''");
@@ -245,7 +245,7 @@ image(imageName, {
 		run("sudo git init");
 
 		//TODO: Add Public-Key from Jenkins (key is on /usr/local/jenkins/id_rsa.pub | see jenkis config)
-		run('docker add /usr/local/jenkins/jenkins.pub ~/.ssh');
+		//run('docker add /usr/local/jenkins/jenkins.pub ~/.ssh');
 
 		expose("8082");
 		// Mount Data on Host-Volume
@@ -308,37 +308,9 @@ host(hostname,
 					name: "eth2",
 					type: "dhcp"
 				});
-				if(system = "windows"){
+				if(system != "windows"){
 					// network for communication with vbox-host
-					var HostOnlyAdapterAddress;
-					var HostOnlyAdapterNetmast;
-					var VMAddress;
-					
-					//TODO: change from static to dhcp
-					//1. Get IP and Mask of Host-Onyl-Adapter 
-					//run on cmd: netsh interface ip show config name="VirtualBox Host-Only Hetwork" | findstr "IP Address"
-					HostOnlyAdapterAddress = "169.254.103.50";
-					// and netsh interface ip show config name="VirtualBox Host-Only Hetwork" | findstr "Subnet Prefix"
-					HostOnlyAdapterNetmast = "255.255.0.0";
-					
-					//2. Build IP-Address with random numbers between 2 and 254 in the editable part of ip
-					//3. Check if ip is unique
-					//4. Retrun to 2. if not unique
-					//5. Set IP as 'static'
-					//var isUnique = "false";
-					//while(isUnique == "false"){
-						//get 
-					//}
-
-					VMAddress = "169.254.104.51";
-					//6. finally push interface
-					interfaces.push({		
-					name: "eth1",
-					type: "static",
-					address: VMAddress,
-					netmask: HostOnlyAdapterNetmast
-				});
-				}else{
+					// Interface set in Java
 					interfaces.push({
 					// network for communication with vbox-host
 					name: "eth1",
@@ -352,15 +324,21 @@ host(hostname,
 				interfaces: interfaces
 			});
 
-			//run("echo -e 'nameserver " + site.dns.ip + "\n' > /etc/resolvconf/resolv.conf.d/head");
-			run("echo -e 'search " + site.domainName + "\n' > /etc/resolvconf/resolv.conf.d/base");
-
 			run("ifdown eth0; ifup eth0");
-			run("ifdown eth1; ifup eth1"); 
-			
+
+			if(hypervisorType != "virtualbox" && system != "windows"){
+				run("ifdown eth1; ifup eth1"); 
+			}else{
+				//Set automatically IP in JAVA 
+				//Only with Windows and Virtualbox 
+				setHostOnlyIpVBoxWin(hostname);
+			}	
 			if(hypervisorType == "virtualbox") {
 				run("ifdown eth2; ifup eth2");
-			}			
+			}
+
+			//run("echo -e 'nameserver " + site.dns.ip + "\n' > /etc/resolvconf/resolv.conf.d/head");
+			run("echo -e 'search " + site.domainName + "\n' > /etc/resolvconf/resolv.conf.d/base");			
 
 			run("resolvconf -u");
 			
