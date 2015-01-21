@@ -26,18 +26,21 @@ image("nginx", {
 		run("sudo apt-get install -y nginx");
 		run("sudo apt-get install -y curl");
 
+		//Add User
+		run("sudo useradd -d /home/nginx -m --password nginx nginx");
+
+		// Mount Data on Host-Volume
+		volume("/usr/local/nginx","/opt/nginx");
+
 		// Change Config
-		//TODO: It must be an Template in floto/server
 		//  Put Config-File to Container
 		run('cd /etc/nginx/sites-available/');
 		run('touch reverse-proxy.conf');
 		addTemplate(__DIR__ + "templates/nginxreverse.conf", "/etc/nginx/sites-available/nginxreverse.conf", {hostname : hostname});
 
-
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
 		expose('80');
-		// Mount Data on Host-Volume
-		volume("/usr/local/nginx","/opt/nginx");
+		
 
 		cmd("nginx");
 	},
@@ -58,6 +61,9 @@ var imageName = "nexus"
 image(imageName, {
 	build: function() {		
 		from("dockerfile/ubuntu");
+
+		// Mount Data on Host-Volume
+		volume("/usr/local/nexus","/opt/nexus");
 
 		//Add User
 		run("sudo useradd -d /home/nexus -m --password nexus nexus");
@@ -81,10 +87,7 @@ image(imageName, {
 		env("CONTEXT_PATH", "/nexus");
 
 		// Make Key-Pair for Jenkins-communication
-		//run('ssh-keygen -t rsa -C "nexus@nexus" -f "nexus" -P "12345"');
-
-		// Mount Data on Host-Volume
-		volume("/usr/local/nexus","~/.");
+		run("ssh-keygen -f nexkey -t rsa -N ''");
 
 		// run
 		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
@@ -108,6 +111,9 @@ image("jenkins", {
 		from("dockerfile/ubuntu");
 		run("apt-get update");
 
+		// Mount data 
+		volume("/usr/local/jenkins","/opt/jenkins/");
+
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
 		run("sudo mkdir /usr/java");
@@ -115,83 +121,76 @@ image("jenkins", {
 
 		//Add User
 		run("sudo useradd -d /home/jenkins -m --password jenkins jenkins");
-		run('export JENKINS_HOME=~/.');
 
-		//Change to home directory
-		run("cd ~/.")
 
 		//Install jenkins
 		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
+		cmd("mkdir /root/.jenkins/plugins");
+
 		// create temp directory for plugins (may not needed)
 		//run('sudo mkdir .jenkins');
 		//run('cd .jenkins');
-		var jenkins_tmp = "plugins";
-		run("sudo mkdir " + jenkins_tmp);
-		run("cd " + jenkins_tmp);
+		//var jenkins_tmp = "plugins";
+		//run("sudo mkdir " + jenkins_tmp);
+		//run("cd " + jenkins_tmp);
+
 		// ************************** Plug-In's ***************************
 		// ******************** always link to latest *********************
 		// ************ load all Plug-In's in jenkins/plugins/ ************
-		// Copy all plugins to temp-folder.
+		// Copy all plugins to wokdorectory of jenkins.
 		// Condidtional-buildsteps Plugin
-		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi");
+		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi ");
+		cmd("cp configure-job-column-plugin.hpi $user.home/.jenkins/plugins");
 		// Git Client Plugin
-		run("wget https://updates.jenkins-ci.org/latest/git-client.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/git-client.hpi -O $user.home/.jenkins/plugins");
 		// Git Plugin
-		run("wget https://updates.jenkins-ci.org/latest/git.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/git.hpi -O $user.home/.jenkins/plugins");
 		// Promoted Builds Plugin
-		run("wget https://updates.jenkins-ci.org/latest/promoted-builds.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/promoted-builds.hpi -O $user.home/.jenkins/plugins");
 		// Batch Task Plugin
-		run("wget https://updates.jenkins-ci.org/latest/batch-task.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/batch-task.hpi -O $user.home/.jenkins/plugins");
 		// Maven Plugin (Maven Intergration Plugin not Found)
-		run("wget https://updates.jenkins-ci.org/latest/maven-plugin.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/maven-plugin.hpi -O $user.home/.jenkins/plugins");
 		// M2Release Cascade Plugin (Maven Release Plugin not found)
-		run("wget https://updates.jenkins-ci.org/latest/m2release.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/m2release.hpi -O $user.home/.jenkins/plugins");
 		// Parameterrized Remote Trigger Plugin 
-		run("wget https://updates.jenkins-ci.org/latest/Parameterized-Remote-Trigger.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/Parameterized-Remote-Trigger.hpi -O $user.home/.jenkins/plugins");
 		// Run Condition Plugin
-		run("wget https://updates.jenkins-ci.org/latest/run-condition.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/run-condition.hpi -O $user.home/.jenkins/plugins");
 		// SCM API Plugin
-		run("wget https://updates.jenkins-ci.org/latest/scm-api.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/scm-api.hpi -O $user.home/.jenkins/plugins");
 		// Workspace Cleanup Plugin
-		run("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi");
+		cmd("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi -O $user.home/.jenkins/plugins");
 		// Artifactory Plugin
-		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi");
+		cmd("wget https://updates.jenkins-ci.org/latest/artifactory.hpi -O $user.home/.jenkins/plugins");
 		//Back to .jenkins
-		run("cd ..");
+		//run("cd ..");
 
 		//for main webinterface
 		expose("8080");
 
 		// Create Buildjob 
-		run('sudo mkdir jobs');
-		run('cd jobs');
-		run('sudo mkdir test-job');
-		run('sudo chmod 777 test-job');
-		run('cd test-job');
+		cmd('mkdir $user.home/.jenkins/jobs');
+		cmd('sudo mkdir $user.home/.jenkins/jobs/test-job');
 		//Copy Config file to container
-		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "~/jobs/test-job/config.xml","");
+		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "$user.home/.jenkins/jobs/test-job/config.xml","");
 
-		run('mkdir builds');
-		run('cd builds');
-		run('touch lastFailedBuild');
-		run('touch lastStableBuild');
-		run('touch lastSuccessfulBuild');
-		run('touch lastUnstableBuild');
-		run('touch lastUnsuccessfulBuild');
-		//Back to root
-		run('cd ');
+		cmd('mkdir $user.home/.jenkins/jobs/test-job/builds');
+		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastFailedBuild');
+		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastStableBuild');
+		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastSuccessfulBuild');
+		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastUnstableBuild');
+		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastUnsuccessfulBuild');
+
 
 		//Directory tmp cache for git needed by git-plugin
-		run('mkdir git');
+		//run('mkdir git');
 
-		//TODO: Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects
-		//run('ssh-keygen -t rsa -C "jenkins@jenkins" -f "jenkins" -P "12345"');
+		//Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects
+		run("ssh-keygen -f jenkins -t rsa -N ''");
 		//TODO: Add Public-Key from nexus to store successful builds
 		//run('docker add /usr/local/nexus/nexus.pub ~/.ssh');
-
-		// Mount data 
-		volume("/usr/local/jenkins","~/.");
 
 		// run jenkins	
 		cmd("java -jar jenkins.war");
@@ -218,6 +217,9 @@ image(imageName, {
 		
 		//Add User
 		run("sudo useradd -d /home/gitolite -m --password gitolite gitolite");
+
+		// Mount Data on Host-Volume
+		volume("/usr/local/gitolite","/opt/gitolite");
 
 		//Install gitolite
 		run("sudo su - gitolite -c 'git clone git://github.com/sitaramc/gitolite'");
@@ -248,8 +250,6 @@ image(imageName, {
 		//run('docker add /usr/local/jenkins/jenkins.pub ~/.ssh');
 
 		expose("8082");
-		// Mount Data on Host-Volume
-		volume("/usr/local/gitolite","/opt/gitolite");
 
 		cmd("gitolite");
 	},
@@ -283,7 +283,7 @@ host(hostname,
 			run("echo " + host.name + " > /etc/hostname ");
 			run("sudo start hostname ");
 			run("pkill -f \"/sbin/getty.*tty[1-6]\" || true");
-			run("sed -i 's/^127.0.1.1.*/127.0.1.1   " + host.name + "." + site.domainName + "   " + host.name + "/' /etc/hosts")
+			run("sed -i 's/^127.0.1.1.*/127.0.1.1   " + host.name + "." + site.domainName + "   " + host.name + "/' /etc/hosts");
 
 			// Configure network
 			var interfaces = [
@@ -343,6 +343,12 @@ host(hostname,
 			run("resolvconf -u");
 			
 			determineIp("hostname -I | cut -d ' ' -f2");
+
+			//Create folders for volume data 
+			run("mkdir /usr/local/gitolite");
+			run("mkdir /usr/local/nexus");
+			run("mkdir /usr/local/jenkins");
+			run("mkdir /usr/local/nginx");
 			
 			// Restart docker so it uses our nameserver config
 			run("sudo service docker restart");
