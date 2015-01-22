@@ -122,75 +122,86 @@ image("jenkins", {
 		//Add User
 		run("sudo useradd -d /home/jenkins -m --password jenkins jenkins");
 
+		// Change JENKINS_HOME
+		run("echo 'JENKINS_HOME=/root/.jenkins' > /etc/init.d/jenkins");
 
 		//Install jenkins
-		run("sudo wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
+		run("wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
-		cmd("mkdir /root/.jenkins/plugins");
-
-		// create temp directory for plugins (may not needed)
-		//run('sudo mkdir .jenkins');
-		//run('cd .jenkins');
-		//var jenkins_tmp = "plugins";
-		//run("sudo mkdir " + jenkins_tmp);
-		//run("cd " + jenkins_tmp);
+		// Directory for plugins
+		run("mkdir /root/.jenkins");
+		run("mkdir /root/.jenkins/plugins");
+		run("chmod 777 /root");
+		run("chmod 777 /root/.jenkins");
+		run("chmod 777 /root/.jenkins/plugins");
 
 		// ************************** Plug-In's ***************************
 		// ******************** always link to latest *********************
 		// ************ load all Plug-In's in jenkins/plugins/ ************
 		// Copy all plugins to wokdorectory of jenkins.
 		// Condidtional-buildsteps Plugin
-		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi ");
-		cmd("cp configure-job-column-plugin.hpi $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/configure-job-column-plugin.hpi  ");
+		run("mv configure-job-column-plugin.hpi /root/.jenkins/plugins/");
 		// Git Client Plugin
-		cmd("wget https://updates.jenkins-ci.org/latest/git-client.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/git-client.hpi ");
+		run("mv git-client.hpi /root/.jenkins/plugins/");
 		// Git Plugin
-		cmd("wget https://updates.jenkins-ci.org/latest/git.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/git.hpi ");
+		run("mv git.hpi /root/.jenkins/plugins/");
 		// Promoted Builds Plugin
-		cmd("wget https://updates.jenkins-ci.org/latest/promoted-builds.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/promoted-builds.hpi ");
+		run("mv promoted-builds.hpi /root/.jenkins/plugins/");
 		// Batch Task Plugin
-		cmd("wget https://updates.jenkins-ci.org/latest/batch-task.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/batch-task.hpi ");
+		run("mv batch-task.hpi /root/.jenkins/plugins/");
 		// Maven Plugin (Maven Intergration Plugin not Found)
-		cmd("wget https://updates.jenkins-ci.org/latest/maven-plugin.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/maven-plugin.hpi ");
+		run("mv maven-plugin.hpi  /root/.jenkins/plugins/");
 		// M2Release Cascade Plugin (Maven Release Plugin not found)
-		cmd("wget https://updates.jenkins-ci.org/latest/m2release.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/m2release.hpi ");
+		run("mv m2release.hpi  /root/.jenkins/plugins/");
 		// Parameterrized Remote Trigger Plugin 
-		cmd("wget https://updates.jenkins-ci.org/latest/Parameterized-Remote-Trigger.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/Parameterized-Remote-Trigger.hpi ");
+		run("mv Parameterized-Remote-Trigger.hpi /root/.jenkins/plugins/");
 		// Run Condition Plugin
-		cmd("wget https://updates.jenkins-ci.org/latest/run-condition.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/run-condition.hpi ");
+		run("mv run-condition.hpi /root/.jenkins/plugins/");
 		// SCM API Plugin
-		cmd("wget https://updates.jenkins-ci.org/latest/scm-api.hpi -O $user.home/.jenkins/plugins");
+		run("wget https://updates.jenkins-ci.org/latest/scm-api.hpi ");
+		run("mv scm-api.hpi /root/.jenkins/plugins/");
 		// Workspace Cleanup Plugin
-		cmd("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi -O $user.home/.jenkins/plugins");
+		run("wget http://updates.jenkins-ci.org/latest/ws-cleanup.hpi ");
+		run("mv ws-cleanup.hpi /root/.jenkins/plugins/");
 		// Artifactory Plugin
-		cmd("wget https://updates.jenkins-ci.org/latest/artifactory.hpi -O $user.home/.jenkins/plugins");
-		//Back to .jenkins
-		//run("cd ..");
+		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi ");
+		run("mv artifactory.hpi /root/.jenkins/plugins/");
+		
 
 		//for main webinterface
 		expose("8080");
 
 		// Create Buildjob 
-		cmd('mkdir $user.home/.jenkins/jobs');
-		cmd('sudo mkdir $user.home/.jenkins/jobs/test-job');
+		run("mkdir /root/.jenkins/jobs");
+		run("chmod 777 /root/.jenkins/jobs");
+		run('mkdir /root/.jenkins/jobs/test-job');
+		run("chmod 777 /root/.jenkins/jobs/test-job");
+
 		//Copy Config file to container
-		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "$user.home/.jenkins/jobs/test-job/config.xml","");
+		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/.jenkins/jobs/test-job/config.xml","");
 
-		cmd('mkdir $user.home/.jenkins/jobs/test-job/builds');
-		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastFailedBuild');
-		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastStableBuild');
-		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastSuccessfulBuild');
-		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastUnstableBuild');
-		cmd('touch $user.home/.jenkins/jobs/test-job/builds/lastUnsuccessfulBuild');
-
-
-		//Directory tmp cache for git needed by git-plugin
-		//run('mkdir git');
+		run('mkdir /root/.jenkins/jobs/test-job/builds');
+		run('chmod 777 /root/.jenkins/jobs/test-job/builds');
+		run('touch /root/.jenkins/jobs/test-job/builds/lastFailedBuild');
+		run('touch /root/.jenkins/jobs/test-job/builds/lastStableBuild');
+		run('touch /root/.jenkins/jobs/test-job/builds/lastSuccessfulBuild');
+		run('touch /root/.jenkins/jobs/test-job/builds/lastUnstableBuild');
+		run('touch /root/.jenkins/jobs/test-job/builds/lastUnsuccessfulBuild');
 
 		//Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects
 		run("ssh-keygen -f jenkins -t rsa -N ''");
-		//TODO: Add Public-Key from nexus to store successful builds
-		//run('docker add /usr/local/nexus/nexus.pub ~/.ssh');
+
+		// Add Public-Key from nexus to store successful builds
+		//run("cp /usr/local/nexus/nexkey.pub /usr/local/jenkins/")
 
 		// run jenkins	
 		cmd("java -jar jenkins.war");
@@ -246,8 +257,8 @@ image(imageName, {
 		run("cd sample"); 
 		run("sudo git init");
 
-		//TODO: Add Public-Key from Jenkins (key is on /usr/local/jenkins/id_rsa.pub | see jenkis config)
-		//run('docker add /usr/local/jenkins/jenkins.pub ~/.ssh');
+		//Add Public-Key from Jenkins 
+		cmd('cp /usr/local/jenkins/jenkins.pub /usr/local/gitolite/');
 
 		expose("8082");
 
