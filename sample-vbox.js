@@ -86,9 +86,6 @@ image(imageName, {
 
 		env("CONTEXT_PATH", "/nexus");
 
-		// Make Key-Pair for Jenkins-communication
-		run("ssh-keygen -f nexkey -t rsa -N ''");
-
 		// run
 		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
 
@@ -123,7 +120,7 @@ image("jenkins", {
 		run("sudo useradd -d /home/jenkins -m --password jenkins jenkins");
 
 		// Change JENKINS_HOME
-		run("echo 'JENKINS_HOME=/root/.jenkins' > /etc/init.d/jenkins");
+		env("JENKINS_HOME", "/root/.jenkins");
 
 		//Install jenkins
 		run("wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
@@ -185,10 +182,11 @@ image("jenkins", {
 		run("chmod 777 /root/.jenkins/jobs");
 		run('mkdir /root/.jenkins/jobs/test-job');
 		run("chmod 777 /root/.jenkins/jobs/test-job");
-
 		//Copy Config file to container
 		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/.jenkins/jobs/test-job/config.xml","");
-
+		
+/*
+		//Not needed
 		run('mkdir /root/.jenkins/jobs/test-job/builds');
 		run('chmod 777 /root/.jenkins/jobs/test-job/builds');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastFailedBuild');
@@ -196,15 +194,10 @@ image("jenkins", {
 		run('touch /root/.jenkins/jobs/test-job/builds/lastSuccessfulBuild');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnstableBuild');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnsuccessfulBuild');
-
-		//Make Key-Pair for Gitolite so Jenkins can pull and clone git-projects
-		run("ssh-keygen -f jenkins -t rsa -N ''");
-
-		// Add Public-Key from nexus to store successful builds
-		//run("cp /usr/local/nexus/nexkey.pub /usr/local/jenkins/")
-
+*/
 		// run jenkins	
 		cmd("java -jar jenkins.war");
+
 	},
 	prepare: function(config, container) {
 		config.webUrl = "http://" + hostname + ".local" + "/jenkins";
@@ -250,15 +243,12 @@ image(imageName, {
 		run("sudo touch start.sh /start.sh");
 		run("sudo chmod a+x /start.sh");
 
-		cmd("/start.sh");
+		run("/start.sh");
 
 		// Sample Project
 		run("sudo mkdir sample");
 		run("cd sample"); 
 		run("sudo git init");
-
-		//Add Public-Key from Jenkins 
-		cmd('cp /usr/local/jenkins/jenkins.pub /usr/local/gitolite/');
 
 		expose("8082");
 
@@ -349,17 +339,32 @@ host(hostname,
 			}
 
 			//run("echo -e 'nameserver " + site.dns.ip + "\n' > /etc/resolvconf/resolv.conf.d/head");
-			run("echo -e 'search " + site.domainName + "\n' > /etc/resolvconf/resolv.conf.d/base");			
-
+			run("echo -e 'search " + site.domainName + "\n' > /etc/resolvconf/resolv.conf.d/base");	
 			run("resolvconf -u");
-			
 			determineIp("hostname -I | cut -d ' ' -f2");
 
-			//Create folders for volume data 
-			run("mkdir /usr/local/gitolite");
-			run("mkdir /usr/local/nexus");
-			run("mkdir /usr/local/jenkins");
+			/*
+			 * Create folders for volume data 
+			 * and Key-Sets for communication
+			 */
 			run("mkdir /usr/local/nginx");
+			
+			run("mkdir /usr/local/nexus");
+			run("ssh-keygen -f nexkey -t rsa -N ''");
+			run("mv nexkey.pub /usr/local/nexus");
+			run("mv nexkey /usr/local/nexus/");
+			
+			run("mkdir /usr/local/jenkins");
+			run("ssh-keygen -f jenkins -t rsa -N ''");
+			run("mv jenkins /usr/local/jenkins/");
+			run("mv jenkins.pub /usr/local/jenkins");
+			//Copy pub key from nexus
+			run("cp /usr/local/nexus/nexkey.pub /usr/local/jenkins");
+			
+			run("mkdir /usr/local/gitolite");
+			//Copy pub key from jenkins
+			run("cp /usr/local/jenkins/jenkins.pub /usr/local/gitolite");
+
 			
 			// Restart docker so it uses our nameserver config
 			run("sudo service docker restart");
