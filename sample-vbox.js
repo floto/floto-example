@@ -173,7 +173,6 @@ image("jenkins", {
 		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi ");
 		run("mv artifactory.hpi /root/.jenkins/plugins/");
 		
-
 		//for main webinterface
 		expose("8080");
 
@@ -184,7 +183,7 @@ image("jenkins", {
 		run("chmod 777 /root/.jenkins/jobs/test-job");
 		//Copy Config file to container
 		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/.jenkins/jobs/test-job/config.xml","");
-		
+
 /*
 		//Not needed
 		run('mkdir /root/.jenkins/jobs/test-job/builds');
@@ -195,6 +194,7 @@ image("jenkins", {
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnstableBuild');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnsuccessfulBuild');
 */
+
 		// run jenkins	
 		cmd("java -jar jenkins.war");
 
@@ -225,6 +225,7 @@ image(imageName, {
 		// Mount Data on Host-Volume
 		volume("/usr/local/gitolite","/opt/gitolite");
 
+
 		//Install gitolite
 		run("sudo su - gitolite -c 'git clone git://github.com/sitaramc/gitolite'");
 		run("sudo su - gitolite -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
@@ -251,6 +252,9 @@ image(imageName, {
 		run("sudo git init");
 
 		expose("8082");
+
+		//Add jenkins key from volume to .ssh/
+		//run("cd jenkins.pub ~/.ssh/");
 
 		cmd("gitolite");
 	},
@@ -350,16 +354,16 @@ host(hostname,
 			run("mkdir /usr/local/nginx");
 			
 			run("mkdir /usr/local/nexus");
-			run("ssh-keygen -f nexkey -t rsa -N ''");
-			run("mv nexkey.pub /usr/local/nexus");
-			run("mv nexkey /usr/local/nexus/");
+			run("ssh-keygen -f nexus -t rsa -N ''");
+			run("mv nexus.pub /usr/local/nexus");
+			run("mv nexus /usr/local/nexus/");
 			
 			run("mkdir /usr/local/jenkins");
 			run("ssh-keygen -f jenkins -t rsa -N ''");
 			run("mv jenkins /usr/local/jenkins/");
 			run("mv jenkins.pub /usr/local/jenkins");
 			//Copy pub key from nexus
-			run("cp /usr/local/nexus/nexkey.pub /usr/local/jenkins");
+			run("cp /usr/local/nexus/nexus.pub /usr/local/jenkins");
 			
 			run("mkdir /usr/local/gitolite");
 			//Copy pub key from jenkins
