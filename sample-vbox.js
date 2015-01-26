@@ -40,7 +40,6 @@ image("nginx", {
 
 		run('echo "\\ndaemon off;" >> /etc/nginx/nginx.conf');
 		expose('80');
-		
 
 		cmd("nginx");
 	},
@@ -75,8 +74,6 @@ image(imageName, {
 		run("mkdir -p /root/opt/sonatype-nexus");
 		run("mkdir -p /root/opt/sonatype-work");
 		run("mkdir -p /root/opt/sonatype-work/nexus");
-		run("chmod 777 /root/");
-		run("chmod 777 /root/opt/");
 		run("chmod 777 /root/opt/sonatype-nexus");
 		run("chmod 777 /root/opt/sonatype-work");
 		run("chmod 777 /root/opt/sonatype-work/nexus");
@@ -122,18 +119,14 @@ image("jenkins", {
 
 		//Add User
 		run("sudo useradd -d /home/jenkins -m --password jenkins jenkins");
-
 		// Change JENKINS_HOME
 		env("JENKINS_HOME", "/root/.jenkins");
-
 		//Install jenkins
 		run("wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
 		// Directory for plugins
 		run("mkdir /root/.jenkins");
 		run("mkdir /root/.jenkins/plugins");
-		run("chmod 777 /root");
-		run("chmod 777 /root/.jenkins");
 		run("chmod 777 /root/.jenkins/plugins");
 
 		// ************************** Plug-In's ***************************
@@ -189,7 +182,7 @@ image("jenkins", {
 		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/.jenkins/jobs/test-job/config.xml","");
 
 /*
-		//Not needed
+		//My needed when actual project is in 
 		run('mkdir /root/.jenkins/jobs/test-job/builds');
 		run('chmod 777 /root/.jenkins/jobs/test-job/builds');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastFailedBuild');
@@ -223,9 +216,12 @@ image(imageName, {
 		run("apt-get update");
 		//Install git
 		run("apt-get install -y git-core");
-		// Mount Data on Host-Volume
-		volume("/usr/local/gitolite","/root/");
 
+		// Mount Data on Host-Volume
+		run("mkdir -p /root/volume");
+		mount("/usr/local/gitolite","/root/volume");
+		run("find /root/volume -type f -ls | wc -l");
+		// method gets 0 -> folder is empty (with mount and volume)
 
 		//Install Gitolite
 		run("apt-get -y install gitolite");
@@ -237,11 +233,10 @@ image(imageName, {
 		run("service ssh restart");
 		run("su - git");
 
-
 		//Put jenkins key into git keydir
-		//run("chmod 777 /root");
-		//run("chmod 777 /root/.ssh");
+		//Error: jenkins.pub is not there -> Volume not working
 		//run("cp /root/jenkins.pub /root/.ssh/");
+		//run("service ssh restart");
 
 		// Sample Project
 		run("mkdir sample");
@@ -345,6 +340,7 @@ host(hostname,
 			 * and Key-Sets for communication
 			 */
 			run("mkdir /usr/local/nginx");
+			run("touch /usr/local/nginx/das.txt");
 			
 			run("mkdir /usr/local/nexus");
 			run("ssh-keygen -f nexus -t rsa -N ''");
@@ -361,8 +357,9 @@ host(hostname,
 			run("mkdir /usr/local/gitolite");
 			//Copy pub key from jenkins
 			run("cp /usr/local/jenkins/jenkins.pub /usr/local/gitolite");
-
 			
+
+
 			// Restart docker so it uses our nameserver config
 			run("sudo service docker restart");
 
