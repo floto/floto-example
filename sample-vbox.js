@@ -66,28 +66,32 @@ image(imageName, {
 		volume("/usr/local/nexus","/opt/nexus");
 
 		//Add User
-		run("sudo useradd -d /home/nexus -m --password nexus nexus");
+		//run("sudo useradd -d /home/nexus -m --password nexus nexus");
 
 		run("apt-get update");
-		run("apt-get install -y default-jre ");
+		run("apt-get install -y openjdk-7-jre-headless");
 		run("apt-get install -y wget");
 
-		run("cd /usr/local");
-		run("wget http://download.sonatype.com/nexus/oss/nexus-2.10.0-02-bundle.tar.gz ");
-		run('tar xvzf nexus-2.10.0-02-bundle.tar.gz ');
+		run("mkdir -p /root/opt/sonatype-nexus");
+		run("mkdir -p /root/opt/sonatype-work");
+		run("mkdir -p /root/opt/sonatype-work/nexus");
+		run("chmod 777 /root/");
+		run("chmod 777 /root/opt/");
+		run("chmod 777 /root/opt/sonatype-nexus");
+		run("chmod 777 /root/opt/sonatype-work");
+		run("chmod 777 /root/opt/sonatype-work/nexus");
 
-		run("sudo ln -s nexus-2.10.0-02 nexus");
-		run("sudo rm -rf sonatype-work/nexus");
-		run("sudo ln -s nexus sonatype-work/nexus");
+		run("wget http://www.sonatype.org/downloads/nexus-latest-bundle.tar.gz ");
+		run("tar xvzf nexus-latest-bundle.tar.gz");
+		run("mv nexus-2.11.1-01/ /root/opt/sonatype-nexus");
 
-		volume("/nexus", "");
+		run("useradd --user-group --system --home-dir /root/opt/sonatype-nexus nexus");
+		run("chown -R nexus:nexus /root/opt/sonatype-work /root/opt/sonatype-nexus /root/opt/sonatype-work/nexus");
 
+		runAsUser("nexus");
+		env("RUN_AS_USER", "root");
 		expose("8081");
-
-		env("CONTEXT_PATH", "/nexus");
-
-		// run
-		cmd("RUN_AS_USER=root NEXUS_CONTEXT_PATH=$CONTEXT_PATH /usr/local/nexus/bin/nexus console");
+		cmd("/root/opt/sonatype-nexus/nexus-2.11.1-01/bin/nexus start");
 
 	},
 	prepare: function(config, container) {
@@ -216,45 +220,34 @@ var imageName = "gitolite"
 image(imageName, {
 	build: function() {
 		from("dockerfile/ubuntu");
-		run("sudo apt-get update");
-		run("sudo apt-get install -y git perl openssh-server");
-		
-		//Add User
-		run("sudo useradd -d /home/gitolite -m --password gitolite gitolite");
-
+		run("apt-get update");
+		//Install git
+		run("apt-get install -y git-core");
 		// Mount Data on Host-Volume
-		volume("/usr/local/gitolite","/opt/gitolite");
+		volume("/usr/local/gitolite","/root/");
 
 
-		//Install gitolite
-		run("sudo su - gitolite -c 'git clone git://github.com/sitaramc/gitolite'");
-		run("sudo su - gitolite -c 'mkdir -p $HOME/bin && gitolite/install -to $HOME/bin'");
+		//Install Gitolite
+		run("apt-get -y install gitolite");
+		//Add User
+		run("adduser --system --group --shell /bin/bash --disabled-password git");
 
 		//setup with build-in ssh key
-		run("ssh-keygen -f admin -t rsa -N ''");
-		// File can not be readed
-		//run("sudo su - git -c '$HOME/bin/gitolite setup -pk /admin.pub'");
+		run("ssh-keygen -f /root/.ssh/gitolite -t rsa -N ''");
+		run("service ssh restart");
+		run("su - git");
 
-		// prevent the perl warning 
-		run("sudo sed  -i 's/AcceptEnv/# \\0/' /etc/ssh/sshd_config");
-		run("sudo sed -i 's/session\\s\\+required\\s\\+pam_loginuid.so/# \\0/' /etc/pam.d/sshd");
 
-		run("mkdir /var/run/sshd");
-
-		run("sudo touch start.sh /start.sh");
-		run("sudo chmod a+x /start.sh");
-
-		run("/start.sh");
+		//Put jenkins key into git keydir
+		//run("chmod 777 /root");
+		//run("chmod 777 /root/.ssh");
+		//run("cp /root/jenkins.pub /root/.ssh/");
 
 		// Sample Project
-		run("sudo mkdir sample");
-		run("cd sample"); 
-		run("sudo git init");
-
+		run("mkdir sample");
+		run("git init /root/sample");
+		
 		expose("8082");
-
-		//Add jenkins key from volume to .ssh/
-		//run("cd jenkins.pub ~/.ssh/");
 
 		cmd("gitolite");
 	},
