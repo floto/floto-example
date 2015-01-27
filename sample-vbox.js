@@ -72,10 +72,10 @@ image(imageName, {
 		run("apt-get install -y wget");
 
 		run("mkdir -p /root/opt/sonatype-nexus");
-		run("mkdir -p /root/opt/sonatype-work");
-		run("mkdir -p /root/opt/sonatype-work/nexus");
 		run("chmod 777 /root/opt/sonatype-nexus");
+		run("mkdir -p /root/opt/sonatype-work");		
 		run("chmod 777 /root/opt/sonatype-work");
+		run("mkdir -p /root/opt/sonatype-work/nexus");
 		run("chmod 777 /root/opt/sonatype-work/nexus");
 
 		run("wget http://www.sonatype.org/downloads/nexus-latest-bundle.tar.gz ");
@@ -111,6 +111,12 @@ image("jenkins", {
 
 		// Mount data 
 		volume("/usr/local/jenkins","/opt/jenkins/");
+		run("mkdir /root/.jenkins");
+
+		//add Private- & Public-Key
+		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins", "/root/.ssh/id_rsa","");
+		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/.ssh/id_rsa.pub","");
+
 
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
@@ -124,8 +130,8 @@ image("jenkins", {
 		//Install jenkins
 		run("wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
 
+
 		// Directory for plugins
-		run("mkdir /root/.jenkins");
 		run("mkdir /root/.jenkins/plugins");
 		run("chmod 777 /root/.jenkins/plugins");
 
@@ -181,7 +187,6 @@ image("jenkins", {
 		//Copy Config file to container
 		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/.jenkins/jobs/test-job/config.xml","");
 
-/*
 		//My needed when actual project is in 
 		run('mkdir /root/.jenkins/jobs/test-job/builds');
 		run('chmod 777 /root/.jenkins/jobs/test-job/builds');
@@ -190,7 +195,10 @@ image("jenkins", {
 		run('touch /root/.jenkins/jobs/test-job/builds/lastSuccessfulBuild');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnstableBuild');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnsuccessfulBuild');
-*/
+
+		//Add user for Gitolite
+		run("mkdir -p /root/.jenkins/users/sample");
+		addTemplate(__DIR__ + "templates/jenkins-user-config.xml", "/root/.jenkins/users/sample/config.xml","");
 
 		// run jenkins	
 		cmd("java -jar jenkins.war");
@@ -218,29 +226,29 @@ image(imageName, {
 		run("apt-get install -y git-core");
 
 		// Mount Data on Host-Volume
-		run("mkdir -p /root/volume");
-		mount("/usr/local/gitolite","/root/volume");
-		run("find /root/volume -type f -ls | wc -l");
-		// method gets 0 -> folder is empty (with mount and volume)
-
+		mount("/usr/local/gitolite","/root/");
+		
 		//Install Gitolite
 		run("apt-get -y install gitolite");
 		//Add User
 		run("adduser --system --group --shell /bin/bash --disabled-password git");
 
 		//setup with build-in ssh key
-		run("ssh-keygen -f /root/.ssh/gitolite -t rsa -N ''");
-		run("service ssh restart");
-		run("su - git");
-
-		//Put jenkins key into git keydir
-		//Error: jenkins.pub is not there -> Volume not working
-		//run("cp /root/jenkins.pub /root/.ssh/");
-		//run("service ssh restart");
+		//Add Private-key
+		addTemplate(__DIR__ + "ssh-keys/gitolite/gitolite", "/root/.ssh/gitolite","");
+		//Add Public-key from Jenkins
+		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/gitolite/keydir/jenkins.pub","");
 
 		// Sample Project
 		run("mkdir sample");
 		run("git init /root/sample");
+
+		run("mkdir -p /root/gitolite/conf");
+		//Add gitolite config
+		addTemplate(__DIR__ + "templates/gitolite.conf", "/root/gitolite/conf/gitolite.conf", "");
+		
+		run("service ssh restart");
+		run("su - git");
 		
 		expose("8082");
 
@@ -337,28 +345,12 @@ host(hostname,
 
 			/*
 			 * Create folders for volume data 
-			 * and Key-Sets for communication
 			 */
 			run("mkdir /usr/local/nginx");
-			run("touch /usr/local/nginx/das.txt");
-			
 			run("mkdir /usr/local/nexus");
-			run("ssh-keygen -f nexus -t rsa -N ''");
-			run("mv nexus.pub /usr/local/nexus");
-			run("mv nexus /usr/local/nexus/");
-			
 			run("mkdir /usr/local/jenkins");
-			run("ssh-keygen -f jenkins -t rsa -N ''");
-			run("mv jenkins /usr/local/jenkins/");
-			run("mv jenkins.pub /usr/local/jenkins");
-			//Copy pub key from nexus
-			run("cp /usr/local/nexus/nexus.pub /usr/local/jenkins");
-			
 			run("mkdir /usr/local/gitolite");
-			//Copy pub key from jenkins
-			run("cp /usr/local/jenkins/jenkins.pub /usr/local/gitolite");
 			
-
 
 			// Restart docker so it uses our nameserver config
 			run("sudo service docker restart");
