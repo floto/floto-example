@@ -119,7 +119,6 @@ image("jenkins", {
 		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins", "/root/.ssh/id_rsa","");
 		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/.ssh/id_rsa.pub","");
 
-
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
 		run("sudo mkdir /usr/java");
@@ -131,7 +130,6 @@ image("jenkins", {
 		env("JENKINS_HOME", "/root/.jenkins");
 		//Install jenkins
 		run("wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war");
-
 
 		// Directory for plugins
 		run("mkdir /root/.jenkins/plugins");
@@ -177,10 +175,10 @@ image("jenkins", {
 		// Artifactory Plugin
 		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi ");
 		run("mv artifactory.hpi /root/.jenkins/plugins/");
-
 		//Nexus Task Runner Plugin to connect nexus with jenkins
 		run("wget https://updates.jenkins-ci.org/latest/nexus-task-runner.hpi");
 		run("mv nexus-task-runner.hpi /root/.jenkins/plugins/");
+
 		//addin logindata from nexus
 		addTemplate(__DIR__ + "templates/org.jenkinsci.plugins.nexus.NexusTaskPublisher.xml", "/root/.jenkins/org.jenkinsci.plugins.nexus.NexusTaskPublisher.xml","");
 
@@ -211,12 +209,10 @@ image("jenkins", {
 		addTemplate(__DIR__ + "templates/jenkins-user-config.xml", "/root/.jenkins/users/sample/config.xml","");
 
 		//Put git in hosts
-		run("bash -c 'echo \"192.168.91.91   git.example.com git    git\" >> /etc/hosts' ");
+		run("bash -c 'echo \"192.168.91.91   git.example.com git \" >> /etc/hosts' ");
 
 		//Clone sample project
-		//run("git clone gitolite@git:sample -y ");
-
-
+		//run("git clone gitolite@git.example.com:sample -y ");
 
 		// run jenkins	
 		cmd("java -jar jenkins.war");
