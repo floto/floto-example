@@ -73,8 +73,10 @@ image(imageName, {
 
 		run("mkdir -p /root/opt/sonatype-nexus");
 		run("chmod 777 /root/opt/sonatype-nexus");
+
 		run("mkdir -p /root/opt/sonatype-work");		
 		run("chmod 777 /root/opt/sonatype-work");
+
 		run("mkdir -p /root/opt/sonatype-work/nexus");
 		run("chmod 777 /root/opt/sonatype-work/nexus");
 
@@ -175,7 +177,13 @@ image("jenkins", {
 		// Artifactory Plugin
 		run("wget https://updates.jenkins-ci.org/latest/artifactory.hpi ");
 		run("mv artifactory.hpi /root/.jenkins/plugins/");
-		
+
+		//Nexus Task Runner Plugin to connect nexus with jenkins
+		run("wget https://updates.jenkins-ci.org/latest/nexus-task-runner.hpi");
+		run("mv nexus-task-runner.hpi /root/.jenkins/plugins/");
+		//addin logindata from nexus
+		addTemplate(__DIR__ + "templates/org.jenkinsci.plugins.nexus.NexusTaskPublisher.xml", "/root/.jenkins/org.jenkinsci.plugins.nexus.NexusTaskPublisher.xml","");
+
 		//for main webinterface
 		expose("8080");
 
@@ -187,6 +195,7 @@ image("jenkins", {
 		//Copy Config file to container
 		addTemplate(__DIR__ + "templates/jenkins-build-config.xml", "/root/.jenkins/jobs/test-job/config.xml","");
 
+		/*
 		//My needed when actual project is in 
 		run('mkdir /root/.jenkins/jobs/test-job/builds');
 		run('chmod 777 /root/.jenkins/jobs/test-job/builds');
@@ -195,10 +204,19 @@ image("jenkins", {
 		run('touch /root/.jenkins/jobs/test-job/builds/lastSuccessfulBuild');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnstableBuild');
 		run('touch /root/.jenkins/jobs/test-job/builds/lastUnsuccessfulBuild');
+		*/
 
 		//Add user for Gitolite
 		run("mkdir -p /root/.jenkins/users/sample");
 		addTemplate(__DIR__ + "templates/jenkins-user-config.xml", "/root/.jenkins/users/sample/config.xml","");
+
+		//Put git in hosts
+		run("bash -c 'echo \"192.168.91.91   git.example.com git    git\" >> /etc/hosts' ");
+
+		//Clone sample project
+		//run("git clone gitolite@git:sample -y ");
+
+
 
 		// run jenkins	
 		cmd("java -jar jenkins.war");
@@ -242,6 +260,13 @@ image(imageName, {
 		// Sample Project
 		run("mkdir sample");
 		run("git init /root/sample");
+		/*
+		run("chmod 777 /root/sample");
+		run("echo 'asd' >> /root/sample/tesjlkt");
+		run("(cd /root/sample; git add -A)");
+		run("(cd /root/sample; git commit)"):
+		run("cd /root/sample/ && git push origin master");
+		*/
 
 		run("mkdir -p /root/gitolite/conf");
 		//Add gitolite config
@@ -249,6 +274,7 @@ image(imageName, {
 		
 		run("service ssh restart");
 		run("su - git");
+
 		
 		expose("8082");
 
