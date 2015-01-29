@@ -244,6 +244,8 @@ image(imageName, {
 		
 		//Install Gitolite
 		run("apt-get -y install gitolite");
+		//Install Curl
+		run("apt-get -y install curl");
 		//Add User
 		run("adduser --system --group --shell /bin/bash --disabled-password git");
 
@@ -258,21 +260,11 @@ image(imageName, {
 		//Add gitolite config
 		addTemplate(__DIR__ + "templates/gitolite.conf", "/root/gitolite/conf/gitolite.conf", "");
 
-		//Gitolite post-recive hook to trigger buildsq of Jenkins Jobs
-		addTemplate(__DIR__ + "templates/post-recive-gitolite.sh", "/root/gitolite/hooks/common/post-receive", "");
-		//run("gitolite setup");
-
 		// Sample Project
 		run("mkdir sample");
 		run("git init /root/sample");
-
-		/*
-		run("chmod 777 /root/sample");
-		run("echo 'asd' >> /root/sample/tesjlkt");
-		run("(cd /root/sample; git add -A)");
-		run("(cd /root/sample; git commit)"):
-		run("cd /root/sample/ && git push origin master");
-		*/
+		//Gitolite post-recive hook to trigger buildsq of Jenkins Jobs
+		run("curl http://192.168.91.91:8080/jenkins/git/notifyCommit?url=/root/sample/");
 
 		run("su - git");	
 		expose("8082");
