@@ -252,10 +252,20 @@ image(imageName, {
 		addTemplate(__DIR__ + "ssh-keys/gitolite/gitolite", "/root/.ssh/gitolite","");
 		//Add Public-key from Jenkins
 		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/gitolite/keydir/jenkins.pub","");
+		run("service ssh restart");
+
+		run("mkdir -p /root/gitolite/conf");
+		//Add gitolite config
+		addTemplate(__DIR__ + "templates/gitolite.conf", "/root/gitolite/conf/gitolite.conf", "");
+
+		//Gitolite post-recive hook to trigger buildsq of Jenkins Jobs
+		addTemplate(__DIR__ + "templates/post-recive-gitolite.sh", "/root/gitolite/hooks/common/post-receive", "");
+		//run("gitolite setup");
 
 		// Sample Project
 		run("mkdir sample");
 		run("git init /root/sample");
+
 		/*
 		run("chmod 777 /root/sample");
 		run("echo 'asd' >> /root/sample/tesjlkt");
@@ -264,16 +274,8 @@ image(imageName, {
 		run("cd /root/sample/ && git push origin master");
 		*/
 
-		run("mkdir -p /root/gitolite/conf");
-		//Add gitolite config
-		addTemplate(__DIR__ + "templates/gitolite.conf", "/root/gitolite/conf/gitolite.conf", "");
-		
-		run("service ssh restart");
-		run("su - git");
-
-		
+		run("su - git");	
 		expose("8082");
-
 		cmd("gitolite");
 	},
 	prepare: function(config, container) {
