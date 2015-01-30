@@ -239,11 +239,13 @@ image(imageName, {
 		//Install git
 		run("apt-get install -y git-core");
 
-		// Mount Data on Host-Volume
-		mount("/usr/local/gitolite","/root/");
+		// Make folder for Mount Data on Host-Volume
+		run("mkdir /root/volume");
+		// Mount is done in shell script 
+		//mount("/usr/local/gitolite","/root/volume");
 		
-		//Install Gitolite
-		run("apt-get -y install gitolite");
+		//get Gitolite
+		run("git clone git://github.com/sitaramc/gitolite");
 		//Install Curl
 		run("apt-get -y install curl");
 		//Add User
@@ -252,9 +254,20 @@ image(imageName, {
 		//setup with build-in ssh key
 		//Add Private-key
 		addTemplate(__DIR__ + "ssh-keys/gitolite/gitolite", "/root/.ssh/gitolite","");
+		addTemplate(__DIR__ + "ssh-keys/gitolite/gitolite.pub", "/root/.ssh/gitolite.pub","");
+		run("echo 'Host gitbox' >> /root/.ssh/config");
+		run("echo 'User root' >> /root/.ssh/config");
+		run("echo 'Hostname 192.168.91.91' >> /root/.ssh/config");
+		run("echo 'Port 22' >> /root/.ssh/config");
+		run("echo 'IdentityFile /root/.ssh/gitolite' >> /root/.ssh/config");
+		//Put keys in /root/.ssh/authorized_keys
+		run("")
+
+		run("chown -R git:git /root/gitolite/");
+
 		//Add Public-key from Jenkins
 		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/gitolite/keydir/jenkins.pub","");
-		run("service ssh restart");
+		//run("service ssh restart");
 
 		run("mkdir -p /root/gitolite/conf");
 		//Add gitolite config
@@ -264,11 +277,18 @@ image(imageName, {
 		run("mkdir sample");
 		run("git init /root/sample");
 		//Gitolite post-recive hook to trigger buildsq of Jenkins Jobs
-		run("curl http://192.168.91.91:8080/jenkins/git/notifyCommit?url=/root/sample/");
+		//run("curl http://192.168.91.91:8080/jenkins/git/notifyCommit?url=/root/sample/");
 
+
+		//make install filder
+		run("mkdir /root/gitolite/bin");
 		run("su - git");	
 		expose("8082");
-		cmd("gitolite");
+		//here put gitolite run script
+		var startGitolite = "/root/startGitolite";
+		addTemplate(__DIR__ + "templates/startGitolite.sh", startGitolite, "");
+		run("chmod 777 /root/startGitolite");
+		cmd(startGitolite);
 	},
 	prepare: function(config, container) {
 		config.webUrl = "http://" + hostname + ".local" + "/gitolite";
@@ -366,6 +386,7 @@ host(hostname,
 			run("mkdir /usr/local/nexus");
 			run("mkdir /usr/local/jenkins");
 			run("mkdir /usr/local/gitolite");
+			run("touch /usr/local/gitolite/aslijfl");
 			
 
 			// Restart docker so it uses our nameserver config
