@@ -14,7 +14,7 @@ if [ -d "$DIR" ]; then
 		echo "volume is not empty"
 	else
 		#Problem: shell dont know docker 
-	   VOLUME ["/usr/local/gitolite:/root/volume"]
-	   echo "make Host-Volume"
+		#volume("/usr/local/gitolite","/root/volume");
+	   	echo "make Host-Volume"
 	fi
 fi

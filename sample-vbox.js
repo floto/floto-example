@@ -241,8 +241,8 @@ image(imageName, {
 
 		// Make folder for Mount Data on Host-Volume
 		run("mkdir /root/volume");
-		// Mount is done in shell script 
-		//mount("/usr/local/gitolite","/root/volume");
+		// Mount here and edit in shell script
+		volume("/usr/local/gitolite","/root/volume");
 		
 		//get Gitolite
 		run("git clone git://github.com/sitaramc/gitolite");
