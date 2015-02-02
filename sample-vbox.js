@@ -112,12 +112,16 @@ image("jenkins", {
 		run("apt-get update");
 
 		// Mount data 
-		volume("/usr/local/jenkins","/opt/jenkins/");
+		run("mkdir /root/volume");
+		volume("/usr/local/jenkins","/root/volume/");
 		run("mkdir /root/.jenkins");
 
 		//add Private- & Public-Key
-		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins", "/root/.ssh/id_rsa","");
-		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/.ssh/id_rsa.pub","");
+		//addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins", "/root/.ssh/id_rsa","");
+		//addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/.ssh/id_rsa.pub","");
+		run("ssh-keygen -f /root/.ssh/jenkins -t rsa -N ''");
+		//TODO: Send public key to gitolite-volume
+		run("cp /root/.ssh/jenkins.pub /root/volumes");
 
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
@@ -211,11 +215,20 @@ image("jenkins", {
 		//Put git in hosts
 		run("bash -c 'echo \"192.168.91.91   git.example.com git \" >> /etc/hosts' ");
 
-		//Clone sample project
+		//Clone sample project TODO: a job must be created for this
 		//run("git clone gitolite@git.example.com:sample -y ");
 
 		// run jenkins	
-		cmd("java -jar jenkins.war");
+		var startJenkins = "/root/startJenkins";
+		addTemplate(__DIR__ + "templates/startJenkins.sh", startJenkins, "");
+		run("chmod 777 /root/startJenkins");
+		cmd(startJenkins);
+
+		//here put gitolite run script
+		var startJenkins = "/root/startJenkins";
+		addTemplate(__DIR__ + "templates/startJenkins.sh", startJenkins, "");
+		run("chmod 777 /root/startJenkins");
+		cmd(startJenkins);
 
 	},
 	prepare: function(config, container) {
@@ -241,8 +254,9 @@ image(imageName, {
 
 		// Make folder for Mount Data on Host-Volume
 		run("mkdir /root/volume");
-		// Mount here and edit in shell script
 		volume("/usr/local/gitolite","/root/volume");
+		//add Jenkins volume where publickey is
+		volume("/usr/local/jenkins","/root/volume");
 		
 		//get Gitolite
 		run("git clone git://github.com/sitaramc/gitolite");
@@ -251,23 +265,22 @@ image(imageName, {
 		//Add User
 		run("adduser --system --group --shell /bin/bash --disabled-password git");
 
-		//setup with build-in ssh key
-		//Add Private-key
-		addTemplate(__DIR__ + "ssh-keys/gitolite/gitolite", "/root/.ssh/gitolite","");
-		addTemplate(__DIR__ + "ssh-keys/gitolite/gitolite.pub", "/root/.ssh/gitolite.pub","");
+		//Add keypair	
+		run("ssh-keygen -f /root/.ssh/gitolite -t rsa -N ''");
+		run("echo 'IdentityFile /root/.ssh/gitolite' >> /etc/ssh/ssh_config")
 		run("echo 'Host gitbox' >> /root/.ssh/config");
 		run("echo 'User root' >> /root/.ssh/config");
 		run("echo 'Hostname 192.168.91.91' >> /root/.ssh/config");
 		run("echo 'Port 22' >> /root/.ssh/config");
 		run("echo 'IdentityFile /root/.ssh/gitolite' >> /root/.ssh/config");
-		//Put keys in /root/.ssh/authorized_keys
-		run("")
+
+		//Get Public-key from Jenkins TODO: Change :D
+		//addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/gitolite/keydir/jenkins.pub","");
+		//Put public-key in /root/.ssh/authorized_keys
+		//hier wird nachgefragt :/
+		//run("ssh-copy-id /root/gitolite/keydir/jenkins.pub jenkins@sample-host");		
 
 		run("chown -R git:git /root/gitolite/");
-
-		//Add Public-key from Jenkins
-		addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/gitolite/keydir/jenkins.pub","");
-		//run("service ssh restart");
 
 		run("mkdir -p /root/gitolite/conf");
 		//Add gitolite config
@@ -386,7 +399,6 @@ host(hostname,
 			run("mkdir /usr/local/nexus");
 			run("mkdir /usr/local/jenkins");
 			run("mkdir /usr/local/gitolite");
-			run("touch /usr/local/gitolite/aslijfl");
 			
 
 			// Restart docker so it uses our nameserver config

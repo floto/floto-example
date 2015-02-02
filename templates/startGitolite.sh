@@ -8,13 +8,12 @@
 DIR="/root/volume/"
 #check if directory exists
 if [ -d "$DIR" ]; then
-	echo "$DIR exists!"
 	# do this when volume is empty
 	if [ "$(ls -A $DIR)" ]; then
-		echo "volume is not empty"
+		echo "$DIR exists and is not empty"
+		ssh-copy-id /root/volume/jenkins.pub
 	else
-		#Problem: shell dont know docker 
-		#volume("/usr/local/gitolite","/root/volume");
-	   	echo "make Host-Volume"
+		echo "$DIR exists and is empty"
+		
 	fi
 fi
