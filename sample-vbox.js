@@ -114,14 +114,13 @@ image("jenkins", {
 		// Mount data 
 		run("mkdir /root/volume");
 		volume("/usr/local/jenkins","/root/volume/");
+		run("mkdir /root/common");
+		mount("/usr/local/common","/root/common");
+
 		run("mkdir /root/.jenkins");
 
 		//add Private- & Public-Key
-		//addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins", "/root/.ssh/id_rsa","");
-		//addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/.ssh/id_rsa.pub","");
 		run("ssh-keygen -f /root/.ssh/jenkins -t rsa -N ''");
-		//TODO: Send public key to gitolite-volume
-		run("cp /root/.ssh/jenkins.pub /root/volumes");
 
 		//Install Java
 		run("sudo apt-get install -y openjdk-7-jre-headless");
@@ -215,16 +214,7 @@ image("jenkins", {
 		//Put git in hosts
 		run("bash -c 'echo \"192.168.91.91   git.example.com git \" >> /etc/hosts' ");
 
-		//Clone sample project TODO: a job must be created for this
-		//run("git clone gitolite@git.example.com:sample -y ");
-
 		// run jenkins	
-		var startJenkins = "/root/startJenkins";
-		addTemplate(__DIR__ + "templates/startJenkins.sh", startJenkins, "");
-		run("chmod 777 /root/startJenkins");
-		cmd(startJenkins);
-
-		//here put gitolite run script
 		var startJenkins = "/root/startJenkins";
 		addTemplate(__DIR__ + "templates/startJenkins.sh", startJenkins, "");
 		run("chmod 777 /root/startJenkins");
@@ -254,9 +244,11 @@ image(imageName, {
 
 		// Make folder for Mount Data on Host-Volume
 		run("mkdir /root/volume");
+		run("mkdir /root/common");
 		volume("/usr/local/gitolite","/root/volume");
 		//add Jenkins volume where publickey is
 		volume("/usr/local/jenkins","/root/volume");
+		mount("/usr/local/common","/root/common");
 		
 		//get Gitolite
 		run("git clone git://github.com/sitaramc/gitolite");
@@ -289,9 +281,6 @@ image(imageName, {
 		// Sample Project
 		run("mkdir sample");
 		run("git init /root/sample");
-		//Gitolite post-recive hook to trigger buildsq of Jenkins Jobs
-		//run("curl http://192.168.91.91:8080/jenkins/git/notifyCommit?url=/root/sample/");
-
 
 		//make install filder
 		run("mkdir /root/gitolite/bin");
@@ -399,7 +388,7 @@ host(hostname,
 			run("mkdir /usr/local/nexus");
 			run("mkdir /usr/local/jenkins");
 			run("mkdir /usr/local/gitolite");
-			
+			run("mkdir /usr/local/common");
 
 			// Restart docker so it uses our nameserver config
 			run("sudo service docker restart");

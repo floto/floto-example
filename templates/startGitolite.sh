@@ -5,15 +5,30 @@
 /root/gitolite/bin/gitolite setup -pk /root/.ssh/gitolite.pub
 
 # Look if hostvolume is empty
-DIR="/root/volume/"
+DIR="/root/common"
 #check if directory exists
 if [ -d "$DIR" ]; then
 	# do this when volume is empty
 	if [ "$(ls -A $DIR)" ]; then
 		echo "$DIR exists and is not empty"
-		ssh-copy-id /root/volume/jenkins.pub
+		
+		key=$(cat /root/common/jenkins)
+
+		if [ $(cat /root/.ssh/authorized_keys | grep "$key" | wc -l ) -eq 0 ]; then 
+			echo "****************************************************************"
+			# Only once
+			echo -e "\n$key" >> /root/.ssh/authorized_keys
+
+			#Gitolite post-recive hook to trigger buildsq of Jenkins Jobs
+			#curl http://192.168.91.91:8080/jenkins/git/notifyCommit?url=/root/sample/
+
+		else
+			cd && /usr/sbin/sshd -D -e
+			
+		fi
+		
 	else
 		echo "$DIR exists and is empty"
-		
+		#in volume shoub be the public key of jenkins
 	fi
 fi

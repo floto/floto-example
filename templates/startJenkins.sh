@@ -1,18 +1,28 @@
 #!/bin/sh
 
 # start jenkins if key is on host
-DIR="/usr/local/jenkins"
+DIR="/root/common"
+GIT_DIR="/root/smaple"
 if [ -d "$DIR" ]; then
 	# do this when volume is empty
 	if [ "$(ls -A $DIR)" ]; then
 		echo "$DIR exists and is not empty"
-		java -jar jenkins.war
+		#Clone sample project 
+		git clone gitolite@localhost:sample
+
 	else
 		echo "$DIR exists and is empty"
-		# Copy Public Key to Volume (and host?)
-		cp /root/.ssh/jenkins.pub /root/volumes
-		cp /root/.ssh/jenkins.pub /usr/local/jenkins
+		echo "Copy Jenkins Public-Key into Common-Folder"
+		# Copy Public Key to Volume 
+		cp /root/.ssh/jenkins.pub /root/common
 		
 	fi
+else
+	echo "it doesn't exists"
 fi
 
+if [ -d "$GIT_DIR" ]; then
+	#if clone went right start jenkins
+	java -jar jenkins.war
+		
+fi
