@@ -90,7 +90,12 @@ image(imageName, {
 		runAsUser("nexus");
 		env("RUN_AS_USER", "root");
 		expose("8081");
-		cmd("/root/opt/sonatype-nexus/nexus-2.11.1-01/bin/nexus start");
+
+		// run Nexus	
+		var startNexus = "/root/startNexus";
+		addTemplate(__DIR__ + "templates/startNexus.sh", startNexus, "");
+		run("chmod 777 /root/startNexus");
+		cmd(startNexus);
 
 	},
 	prepare: function(config, container) {
@@ -257,6 +262,8 @@ image(imageName, {
 		//Add User
 		run("adduser --system --group --shell /bin/bash --disabled-password git");
 
+		//istall ssh-server
+		run("apt-get install openssh-server -y");
 		//Add keypair	
 		run("ssh-keygen -f /root/.ssh/gitolite -t rsa -N ''");
 		run("echo 'IdentityFile /root/.ssh/gitolite' >> /etc/ssh/ssh_config")
@@ -265,12 +272,6 @@ image(imageName, {
 		run("echo 'Hostname 192.168.91.91' >> /root/.ssh/config");
 		run("echo 'Port 22' >> /root/.ssh/config");
 		run("echo 'IdentityFile /root/.ssh/gitolite' >> /root/.ssh/config");
-
-		//Get Public-key from Jenkins TODO: Change :D
-		//addTemplate(__DIR__ + "ssh-keys/jenkins/jenkins.pub", "/root/gitolite/keydir/jenkins.pub","");
-		//Put public-key in /root/.ssh/authorized_keys
-		//hier wird nachgefragt :/
-		//run("ssh-copy-id /root/gitolite/keydir/jenkins.pub jenkins@sample-host");		
 
 		run("chown -R git:git /root/gitolite/");
 
