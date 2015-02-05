@@ -217,7 +217,7 @@ image("jenkins", {
 		addTemplate(__DIR__ + "templates/jenkins-user-config.xml", "/root/.jenkins/users/sample/config.xml","");
 
 		//Put git in hosts
-		run("bash -c 'echo \"192.168.91.91   git.example.com git \" >> /etc/hosts' ");
+		//run("bash -c 'echo \"192.168.91.91   git.example.com git \" >> /etc/hosts' ");
 
 		// run jenkins	
 		var startJenkins = "/root/startJenkins";
@@ -246,6 +246,13 @@ image(imageName, {
 		run("apt-get update");
 		//Install git
 		run("apt-get install -y git-core");
+		//istall ssh-server
+		run("apt-get install -y openssh-server");
+		//Install Curl
+		run("apt-get install -y curl");
+
+		run("locale-gen en_US.UTF-8");
+		run("dpkg-reconfigure locales");
 
 		// Make folder for Mount Data on Host-Volume
 		run("mkdir /root/volume");
@@ -257,13 +264,10 @@ image(imageName, {
 		
 		//get Gitolite
 		run("git clone git://github.com/sitaramc/gitolite");
-		//Install Curl
-		run("apt-get -y install curl");
+		
 		//Add User
 		run("adduser --system --group --shell /bin/bash --disabled-password git");
 
-		//istall ssh-server
-		run("apt-get install openssh-server -y");
 		//Add keypair	
 		run("ssh-keygen -f /root/.ssh/gitolite -t rsa -N ''");
 		run("echo 'IdentityFile /root/.ssh/gitolite' >> /etc/ssh/ssh_config")
@@ -283,7 +287,7 @@ image(imageName, {
 		run("mkdir sample");
 		run("git init /root/sample");
 
-		//make install filder
+		//make install folder
 		run("mkdir /root/gitolite/bin");
 		run("su - git");	
 		expose("8082");

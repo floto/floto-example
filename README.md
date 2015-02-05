@@ -1,7 +1,7 @@
 #A sample project to demonstrate the usage of floto
 
-##Configuration of am Host
-First set the following parameters 
+##Configuration of an Host
+First set the following parameters: 
 ```javascript
 setDomain("sample.site");
 
@@ -16,7 +16,7 @@ var restPort = 2375;
 The Hypervisortype can be "virtualbox", "vmware", or "esx".
 The ovaUrl ist the File of the Virtualhost.
 
-To define the Host you have to follow ths structure:
+To define the Host you have to follow this structure:
 ```javascript
 host(hostname, 
 {
@@ -41,6 +41,7 @@ host(hostname,
 );
 ```
 Here are the parameters of the host and the build methods defined. 
+In postDeploy you can put all tasks the Host have to do while deployment.
 ###Define hostname in machine
 ```javascript
 run("echo " + host.name + " > /etc/hostname ");
@@ -109,9 +110,9 @@ if(hypervisorType == "virtualbox") {
 	run("ifdown eth2; ifup eth2");
 }
 ```
-You can use for the interfaces eth1 and eth2 dhcp except of when you are using floto under windows with virtualbox.
+You can use for the interfaces eth1 and eth2 dhcp. The only exception is when you are using floto under windows with virtualbox.
 Then you have to configure the interfaces like in the example. The configuration checks if the OS is Windwos and the Hypervisortype is virtualbox.
-If so then the configuration of the interface makes a Method in the Back-End. 
+If so then the configuration of the interface run a method in the Back-End which create a ip address for the Host-Only-Network. 
 
 ###Create folders for volumes
 One folder for each Image
@@ -122,11 +123,29 @@ run("mkdir /usr/local/jenkins");
 run("mkdir /usr/local/gitolite");
 ```
 
+###Communication via SSH
+When you want to communicate via ssh and you want to send the public-key from one container to an other you can make a mound-folder on the Host. Both containers monut to that folder and can exchange there their data. 
+Host:
+```javascript
+run("mkdir /usr/local/common");
+```
+First Container:
+```javascript
+run("mkdir /root/common");
+mount("/usr/local/common","/root/common");
+```
+Second Container:
+```javascript
+run("mkdir /root/common");
+mount("/usr/local/common","/root/common");
+```
+
 ###Restart Docker
 ```javascript
 run("sudo service docker restart");
 ```
 ###Set Avahi
+You can use Avahi to call Floto in the webbrowser with the Domainname which was set.
 ```javascript
 run('echo "AVAHI_DAEMON_DETECT_LOCAL=0\nAVAHI_DAEMON_START=1\n" > /etc/default/avahi-daemon');
 run('echo "\n[server]\nallow-interfaces=eth1\n" >> /etc/avahi/avahi-daemon.conf');
@@ -211,9 +230,9 @@ container("containername", {
 	host: hostname
 });
 ```
-The imagename should give a hint about whot kind of service the image provides. 
-In the build-function you can add all cammands which have to be in the dockerfile.
-Out of the commands in the build-function floto builds a dockerfile for the image. 
+The imagename should give a hint about what kind of service the image provides. 
+In the build-function you can add all commands which have to be in the dockerfile.
+Of the commands in the build-function floto builds a dockerfile for the image. 
 In the prepare-function you can add for example the link to the web-interface of this service.
 ```javascript
 config.webUrl = "http://" + hostname + ".local" + "/imagename";
@@ -233,26 +252,26 @@ run("apt-get update");
 run("apt-get install -y openjdk-7-jre-headless");
 run("apt-get install -y wget");
 
-run("mkdir -p /root/opt/sonatype-nexus");
-run("chmod 777 /root/opt/sonatype-nexus");
+run("mkdir -p opt/sonatype-nexus");
+run("chmod 777 opt/sonatype-nexus");
 
-run("mkdir -p /root/opt/sonatype-work");		
-run("chmod 777 /root/opt/sonatype-work");
+run("mkdir -p opt/sonatype-work");		
+run("chmod 777 opt/sonatype-work");
 
-run("mkdir -p /root/opt/sonatype-work/nexus");
-run("chmod 777 /root/opt/sonatype-work/nexus");
+run("mkdir -p opt/sonatype-work/nexus");
+run("chmod 777 opt/sonatype-work/nexus");
 
 run("wget http://www.sonatype.org/downloads/nexus-latest-bundle.tar.gz ");
 run("tar xvzf nexus-latest-bundle.tar.gz");
-run("mv nexus-2.11.1-01/ /root/opt/sonatype-nexus");
+run("mv nexus-2.11.1-01/ opt/sonatype-nexus");
 
-run("useradd --user-group --system --home-dir /root/opt/sonatype-nexus nexus");
-run("chown -R nexus:nexus /root/opt/sonatype-work /root/opt/sonatype-nexus /root/opt/sonatype-work/nexus");
+run("useradd --user-group --system --home-dir opt/sonatype-nexus nexus");
+run("chown -R nexus:nexus opt/sonatype-work opt/sonatype-nexus opt/sonatype-work/nexus");
 
 runAsUser("nexus");
 env("RUN_AS_USER", "root");
 expose("8081");
-cmd("/root/opt/sonatype-nexus/nexus-2.11.1-01/bin/nexus start");
+cmd("opt/sonatype-nexus/nexus-2.11.1-01/bin/nexus start");
 ```
 Here we see an configuration of an image for nexus. The methods mean this:
 
@@ -269,10 +288,43 @@ Here we see an configuration of an image for nexus. The methods mean this:
 |mount("hostpath", "containerpath")			| MOUNT 	|
 |addTemplate("name","destination","config")	| ADD 		|
 
+###Add a Template
+To add a template or a file to the Container you can usr the folloing function:
+```javascript
+addTemplate(__DIR__ + "templates/nginxreverse.conf", "/etc/nginx/sites-available/nginxreverse.conf", {hostname : hostname});
+```
+The first parameter is the file on the system you are running. The second parameter ist the path of the file which have to be in the container. The third parameter you can put variables if which are put in the template.
+```bash
+#Nginx Reverse Proxy Configuration for Floto-Example
+
+server {
+	listen 80;
+	server_name ${hostname};
+	access_log /var/www/sample-host/log/nginx.access.log;
+ 	error_log /var/www/sample-host/log/nginx_error.log debug;
+
+	location ~/gitolite {
+		proxy_pass              http://localhost:8082;
+		proxy_pass http://hostname.local/gitolite;
+	}
+
+	location ~/jenkins {
+		proxy_pass              http://localhost:8080;
+		proxy_pass http://hostname.local/jenkins;
+	}
+
+	location ~/nexus {
+		proxy_pass              http://localhost:8081;
+		proxy_pass http://hostname.local/nexus;
+	}
+
+}
+```
+Here will be the server-name set to the parameter given in the addTemplate() function.
 
 *****************************************************************************************************
 ##User-Overrides
-to make your configuration portable you can add a override method where some parameters are changed.
+To make your configuration portable you can add a override method where some parameters are changed.
 ```javascript
 var userOverridesFile = __DIR__ + "user-overrides.js";
 if(new java.io.File(userOverridesFile).exists()) {
@@ -287,7 +339,7 @@ networks = ["VM Network", "DHCP"]
 ```
 *****************************************************************************************************
 ##Example for an NGINX image
-The configuration of NGINX in floto looks like this:
+The configuration of NGINX in the floto-example looks like this:
 ```javascript
 image("nginx", {
 	build: function() {
@@ -334,11 +386,5 @@ Put following in the Argumentes:
 --dev
 --root /path/to/your/floto-example/sample-vbox.js
 ``` 
+
 when you run this configuration you can open floto in your webbrowser with http://localhost:40004/
-
-
-
-
-```javascript
-```
-

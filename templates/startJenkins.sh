@@ -8,7 +8,7 @@ if [ -d "$DIR" ]; then
 	if [ "$(ls -A $DIR)" ]; then
 		echo "$DIR exists and is not empty"
 		#Clone sample project 
-		git clone gitolite@localhost:sample
+		git clone git@localhost:sample
 
 	else
 		echo "$DIR exists and is empty"

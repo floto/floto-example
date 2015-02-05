@@ -21,7 +21,7 @@ if [ -d "$DIR" ]; then
 			echo -e "\n$key" >> /root/.ssh/authorized_keys
 
 			#Gitolite post-recive hook to trigger buildsq of Jenkins Jobs
-			#curl http://192.168.91.91:8080/jenkins/git/notifyCommit?url=/root/sample/
+			curl http://192.168.91.91:8080/jenkins/git/notifyCommit?url=/root/sample/
 
 		else
 			if [ -d "$ssh_dir" ]; then
@@ -30,7 +30,7 @@ if [ -d "$DIR" ]; then
 				mkdir /var/run/sshd
 				chmod 0755 /var/run/sshd
 			fi
-			
+
 			service ssh restart
 			netstat -tan | grep LIST
 			cd && /usr/sbin/sshd -D -e
