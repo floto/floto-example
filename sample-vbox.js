@@ -81,8 +81,8 @@ image(imageName, {
 		run("mkdir -p opt/sonatype-work/nexus");
 		run("chmod 777 opt/sonatype-work/nexus");
 
-		run("wget http://www.sonatype.org/downloads/nexus-latest-bundle.tar.gz ");
-		run("tar xvzf nexus-latest-bundle.tar.gz");
+		run("wget http://download.sonatype.com/nexus/oss/nexus-2.11.1-01-bundle.tar.gz");
+		run("tar xvzf nexus-2.11.1-01-bundle.tar.gz");
 		run("mv nexus-2.11.1-01/ opt/sonatype-nexus");
 
 		run("useradd --user-group --system --home-dir /root/opt/sonatype-nexus nexus");
@@ -92,7 +92,7 @@ image(imageName, {
 		env("RUN_AS_USER", "root");
 		expose("8081");
 
-		// run Nexus	
+		// run Nexus	*/
 		var startNexus = "/root/startNexus";
 		addTemplate(__DIR__ + "templates/startNexus.sh", startNexus, "");
 		run("chmod 777 /root/startNexus");
@@ -283,11 +283,11 @@ image(imageName, {
 		run("git clone git://git.postgresql.org/git/postgresql.git");
 		run("cd postgresql && git checkout REL9_3_1");
 		run("cd postgresql && ./configure --with-tcl --with-perl --with-python --with-pam --with-openssl" +
-			" --with-libxml --with-libxslt --mandir=/usr/local/share/postgresql/man --docdir=/usr/local/share/doc/postg"+
-			"resql-doc --sysconfdir=/etc/postgresql-common --datarootdir=/usr/local/share --datadir=/usr/local/share/post" + 
-			"gresql --bindir=/usr/local/lib/postgresql/bin --libdir=/usr/local/lib --libexecdir=/usr/local/lib/postgresql" + 
-			" --includedir=/usr/local/include/postgresql --with-pgport=5432 --enable-integer-datetimes --enable-thread-" + 
-			"safety --enable-debug --disable-rpath --with-system-tzdata=/usr/share/zoneinfo");
+			" --with-libxml --with-libxslt --mandir=/usr/local/share/postgresql/man --docdir=/usr/local/share/doc/postg" +
+			"resql-doc --sysconfdir=/etc/postgresql-common --datarootdir=/usr/local/share --datadir=/usr/local/share/" +
+			"postgresql --bindir=/usr/local/lib/postgresql/bin --libdir=/usr/local/lib --libexecdir=/usr/local/lib/" +
+			"postgresql --includedir=/usr/local/include/postgresql --with-pgport=5432  --enable-integer-datetimes" +
+			" --enable-thread-safety --enable-debug --disable-rpath --with-system-tzdata=/usr/share/zoneinfo");
 		run("cd postgresql && make");
 		run("cd postgresql && make install");
 		run("cd postgresql/contrib make all");
@@ -312,6 +312,7 @@ image(imageName, {
 		run("/sbin/ldconfig /usr/local/lib/postgresql");
 		run("su - postgres -c \"/usr/local/lib/postgresql/bin/initdb -D /var/lib/postgresql/data\"");
 		run("echo \"CREATE USER git WITH SUPERUSER PASSWORD 'git';\"");
+		run("echo \"CREATE DATABASE gitlabhq_production OWNER git\"");
 		//run("sudo -u postgres /usr/local/lib/postgresql/bin/postgres --single -D /var/lib/postgresql/data" + 
 		//	" -c config_file=/var/lib/postgresql/data/postgresql.conf");
 		
@@ -322,8 +323,13 @@ image(imageName, {
 		run("cd /home/git && git clone https://gitlab.com/gitlab-org/gitlab-ce.git -b 6-9-stable gitlab");
 		run("cp /home/git/gitlab/config/gitlab.yml.example /home/git/gitlab/config/gitlab.yml");
 		//Make sure GitLab can write to the log/ and tmp/ directories
-		//run("cd /home/git/gitlab/ && sudo chown -R git {log,tmp}");
-		//run("cd /home/git/gitlab/ && sudo chmod -R u+rwX {log,tmp,tmp/pids,tmp/sockets,public/uploads}");
+		run("cd /home/git/gitlab/ && sudo chown -R git log/");
+		run("cd /home/git/gitlab/ && sudo chown -R git tmp/");
+		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX log");
+		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX tmp");
+		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX tmp/pids");
+		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX tmp/sockets");
+		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX public/uploads");
 
 		//Create directory for satellites
 		run("mkdir /home/git/gitlab-satellites");
@@ -340,6 +346,15 @@ image(imageName, {
 		run("sudo gem install bundler");
 		run("cd /home/git/gitlab && bundle install --deployment --without development test mysql aws");
 		expose("6379");
+		run("wget https://downloads-packages.s3.amazonaws.com/ubuntu-14.04/gitlab_7.7.2-omnibus.5.4.2.ci-1_amd64.deb");
+		run("sudo dpkg -i gitlab_7.7.2-omnibus.5.4.2.ci-1_amd64.deb");
+
+		/*
+		ERROR WITH CONNECTION TO THE SERVER: 
+			could not connect to server: No such file or directory
+			Is the server running locally and accepting
+			connections on Unix domain socket "/tmp/.s.PGSQL.5432"?
+		*/
 		//run("cd /home/git/gitlab && bundle exec rake gitlab:shell:install[v1.9.4]" +
 		//	" REDIS_URL=redis://localhost:6379 RAILS_ENV=production");
 		//Initialize database and activate advanced features
@@ -349,14 +364,19 @@ image(imageName, {
 		run("sudo cp lib/support/logrotate/gitlab /etc/logrotate.d/gitlab");
 		run("bundle exec rake gitlab:env:info RAILS_ENV=production");
 		run("bundle exec rake assets:precompile RAILS_ENV=production");
+		//*/
+
 		//Configure Git global settings for the git user:
 		run("git config --global user.name \"GitLab\"");
 		run("git config --global user.email \"gitlab@example.com\"");
 		run("git config --global core.autocrlf input");
-		//run("");*/
 
+		//Make a sample Porject to pull in Jenkins
+		run("mkdir sampleproject");
+		run("cd sampleproject && git init");
+		
 		expose("8082");
-		cmd("service gitlab start");
+		cmd("gitlab-ctl reconfigure");
 	},
 	prepare: function(config, container) {
 		config.webUrl = "http://" + hostname + ".local" + "/gitlab";
@@ -364,7 +384,7 @@ image(imageName, {
 	configure: function(config) {
 	}
 });
-container("gitlab", {
+container("gitlab", { 
 	image: "gitlab",
 	host: hostname
 });
@@ -582,7 +602,8 @@ host(hostname,
 			}
 
 			// set new http proxy
-			addTemplate(__DIR__ + "templates/docker-reconfigure.sh", "/tmp/docker-reconfigure.sh", {httpProxy: config.httpProxy});
+			addTemplate(__DIR__ + "templates/docker-reconfigure.sh", "/tmp/docker-reconfigure.sh", 
+				{httpProxy: config.httpProxy});
 			run("bash /tmp/docker-reconfigure.sh > /tmp/docker-reconfigure.log");
 		}
 	}
