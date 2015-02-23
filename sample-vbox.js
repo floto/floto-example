@@ -248,135 +248,67 @@ var imageName = "gitlab"
 image(imageName, {
 	build: function() {
 		from("dockerfile/ubuntu");
-		run("apt-get update");
-
-		//add user
-		run("adduser --disabled-login --gecos 'git' git");
-		// Install the required packages to compile Ruby and native extensions to Ruby gems
-		run("apt-get install -y" + 
-			" build-essential cmake zlib1g-dev libyaml-dev");
-		run("apt-get install -y libssl-dev libgdbm-dev libreadline-dev libncurses5-dev");
-		run("apt-get install -y libffi-dev curl openssh-server redis-server checkinstall libxml2-dev");
-		run("apt-get install -y libxslt-dev libcurl4-openssl-dev libicu-dev logrotate");
-		//install git
-		run("apt-get install git");
-
-		//install ruby
-		run("apt-get remove ruby");
-		run("mkdir -p /root/tmp/ruby ");
-		run("wget http://ftp.ruby-lang.org/pub/ruby/2.1/ruby-2.1.2.tar.gz ")
-		run("mv ruby-2.1.2.tar.gz /root/tmp/ruby");
-		run("tar xvzf /root/tmp/ruby/ruby-2.1.2.tar.gz");
-		run("./ruby-2.1.2/./configure --disable-install-rdoc --prefix=/usr/local");
-		run("make");
-		run("make install");
-		//check ruby version
-		run("ruby -v");
-
-		//Setup PostgreSQL Database for GitLab
-		expose("5432");
-		run("apt-get update -y"),
-		run("apt-get upgrade -y");
-		run("apt-get install build-essential -y");
-		run("apt-get install libreadline-dev zlib1g-dev flex bison libxml2-dev libfl-dev libxslt1-dev" + 
-			" libssl-dev libfl-dev python2.7-dev python-dev libpam-dev tcl-dev libperl-dev git -y");
-		run("git clone git://git.postgresql.org/git/postgresql.git");
-		run("cd postgresql && git checkout REL9_3_1");
-		run("cd postgresql && ./configure --with-tcl --with-perl --with-python --with-pam --with-openssl" +
-			" --with-libxml --with-libxslt --mandir=/usr/local/share/postgresql/man --docdir=/usr/local/share/doc/postg" +
-			"resql-doc --sysconfdir=/etc/postgresql-common --datarootdir=/usr/local/share --datadir=/usr/local/share/" +
-			"postgresql --bindir=/usr/local/lib/postgresql/bin --libdir=/usr/local/lib --libexecdir=/usr/local/lib/" +
-			"postgresql --includedir=/usr/local/include/postgresql --with-pgport=5432  --enable-integer-datetimes" +
-			" --enable-thread-safety --enable-debug --disable-rpath --with-system-tzdata=/usr/share/zoneinfo");
-		run("cd postgresql && make");
-		run("cd postgresql && make install");
-		run("cd postgresql/contrib make all");
-		run("cd postgresql/contrib make install");
-		run("cp postgresql/contrib/start-scripts/linux /etc/init.d/postgresql ");
-		run("sed -i 's,/usr/local/pgsql/data,/var/lib/postgresql/data,g' /etc/init.d/postgresql");
-		run("sed -i 's,/usr/local/pgsql,/usr/local/lib/postgresql,g' /etc/init.d/postgresql");
-		
-		run("chmod +x /etc/init.d/postgresql");
-		run("update-rc.d postgresql defaults");
-		run("echo 'PATH=$PATH:/usr/local/lib/postgresql/bin; export PATH' > /etc/profile.d/postgresql.sh");
-		run("echo 'MANPATH=$MANPATH:/usr/local/postgresql/man; export MANPATH' >> /etc/profile.d/pgmanual.sh");
-		run("chmod 775 /etc/profile.d/postgresql.sh");
-		run("chmod 775 /etc/profile.d/pgmanual.sh");
-		run(". /etc/profile");
-		run("adduser postgres --disabled-password --gecos '' ");
-		run("mkdir -p /var/log/postgresql");
-		run("chown -R postgres:postgres /var/log/postgresql");
-
-		run("mkdir -p /var/lib/postgresql/data");
-		run("chown -R postgres:postgres /var/lib/postgresql/data");
-		run("/sbin/ldconfig /usr/local/lib/postgresql");
-		run("su - postgres -c \"/usr/local/lib/postgresql/bin/initdb -D /var/lib/postgresql/data\"");
-		run("echo \"CREATE USER git WITH SUPERUSER PASSWORD 'git';\"");
-		run("echo \"CREATE DATABASE gitlabhq_production OWNER git\"");
-		//run("sudo -u postgres /usr/local/lib/postgresql/bin/postgres --single -D /var/lib/postgresql/data" + 
-		//	" -c config_file=/var/lib/postgresql/data/postgresql.conf");
-		
-		run("echo \"host    all     all   0.0.0.0/0     trust\" >> /var/lib/postgresql/data/pg_hba.conf");
-		run("echo \"listen_addresses='*'\" >> /var/lib/postgresql/data/postgresql.conf");
-
-		//Install GitLab
-		run("cd /home/git && git clone https://gitlab.com/gitlab-org/gitlab-ce.git -b 6-9-stable gitlab");
-		run("cp /home/git/gitlab/config/gitlab.yml.example /home/git/gitlab/config/gitlab.yml");
-		//Make sure GitLab can write to the log/ and tmp/ directories
-		run("cd /home/git/gitlab/ && sudo chown -R git log/");
-		run("cd /home/git/gitlab/ && sudo chown -R git tmp/");
-		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX log");
-		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX tmp");
-		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX tmp/pids");
-		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX tmp/sockets");
-		run("cd /home/git/gitlab/ && sudo chmod -R u+rwX public/uploads");
-
-		//Create directory for satellites
-		run("mkdir /home/git/gitlab-satellites");
-		run("sudo chmod u+rwx,g+rx,o-rwx /home/git/gitlab-satellites");
-		//Create the Unicorn, Rack attack, and PostgreSQL configuration files
-		run("cd /home/git/gitlab/ && cp config/unicorn.rb.example config/unicorn.rb");
-		run("cd /home/git/gitlab/ && cp config/initializers/rack_attack.rb.example config/initializers/rack_attack.rb");
-		run("cd /home/git/gitlab/ && cp config/database.yml.postgresql config/database.yml");
-		
-		//Install the gems
-		run("sudo apt-get install -y libpq-dev");
-		run("sudo gem install pg -v '0.15.1'");
-
-		run("sudo gem install bundler");
-		run("cd /home/git/gitlab && bundle install --deployment --without development test mysql aws");
-		expose("6379");
-		run("wget https://downloads-packages.s3.amazonaws.com/ubuntu-14.04/gitlab_7.7.2-omnibus.5.4.2.ci-1_amd64.deb");
-		run("sudo dpkg -i gitlab_7.7.2-omnibus.5.4.2.ci-1_amd64.deb");
 
 		/*
-		ERROR WITH CONNECTION TO THE SERVER: 
-			could not connect to server: No such file or directory
-			Is the server running locally and accepting
-			connections on Unix domain socket "/tmp/.s.PGSQL.5432"?
-		*/
-		//run("cd /home/git/gitlab && bundle exec rake gitlab:shell:install[v1.9.4]" +
-		//	" REDIS_URL=redis://localhost:6379 RAILS_ENV=production");
-		//Initialize database and activate advanced features
-		/*run("cd /home/git/gitlab &&  bundle exec rake gitlab:setup RAILS_ENV=production -y");
-		run("cp /home/git/gitlab/lib/support/init.d/gitlab /etc/init.d/gitlab");
-		run("sudo update-rc.d gitlab defaults 21");
-		run("sudo cp lib/support/logrotate/gitlab /etc/logrotate.d/gitlab");
-		run("bundle exec rake gitlab:env:info RAILS_ENV=production");
-		run("bundle exec rake assets:precompile RAILS_ENV=production");
-		//*/
+	 	 * Install Database
+	 	 */
+	 	 run("apt-get update");
+	 	 run("apt-get install -y mysql-server");
+	 	 run("apt-get install -y php5-mysql");
+	 	 run("mysqladmin creategitlabhq_production")
 
-		//Configure Git global settings for the git user:
-		run("git config --global user.name \"GitLab\"");
-		run("git config --global user.email \"gitlab@example.com\"");
-		run("git config --global core.autocrlf input");
+		/*
+		 * Install GitLab
+		 */
+		run("apt-key adv --keyserver keyserver.ubuntu.com --recv E1DF1F24" + 
+			" && echo \"deb http://ppa.launchpad.net/git-core/ppa/ubuntu trusty main\" >> /etc/apt/sources.list" + 
+			" && apt-key adv --keyserver keyserver.ubuntu.com --recv C3173AA6" + 
+			" && echo \"deb http://ppa.launchpad.net/brightbox/ruby-ng/ubuntu trusty main\" >> /etc/apt/sources.list" + 
+			" && apt-key adv --keyserver keyserver.ubuntu.com --recv C300EE8C" + 
+			" && echo \"deb http://ppa.launchpad.net/nginx/stable/ubuntu trusty main\" >> /etc/apt/sources.list" + 
+			" && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - " + 
+			" && echo 'deb http://apt.postgresql.org/pub/repos/apt/ trusty-pgdg main' > /etc/apt/sources.list.d/pgdg.list"); 
+			
+		run(" apt-get update" + 
+			" && apt-get install -y supervisor logrotate locales" + 
+			" nginx openssh-server mysql-client postgresql-client redis-tools" + 
+			" git-core ruby2.1 python2.7 python-docutils" + 
+			" libmysqlclient18 libpq5 zlib1g libyaml-0-2 libssl1.0.0" + 
+			" libgdbm3 libreadline6 libncurses5 libffi6" + 
+			" libxml2 libxslt1.1 libcurl3 libicu52");
 
-		//Make a sample Porject to pull in Jenkins
-		run("mkdir sampleproject");
-		run("cd sampleproject && git init");
-		
+		run(" update-locale LANG=C.UTF-8 LC_MESSAGES=POSIX" + 
+			" && locale-gen en_US.UTF-8" + 
+			" && dpkg-reconfigure locales");
+
+		run(" gem install --no-document bundler" + 
+			" && rm -rf /var/lib/apt/lists/* # 20150220"); 
+
+		run("mkdir /app");
+		copyDirectory(__DIR__+"templates/Gitlab/setup", "/app/", "");
+		run("chmod 777 /app/setup/install");
+		run("cd /app/setup/ && sh install");
+
+		copyDirectory(__DIR__+"templates/Gitlab/config", "/app/setup/", "");
+
+		copyDirectory(__DIR__+"templates/Gitlab/init-folder/", "/app/", "");
+		run("mv /app/init-folder/init /app/init");
+		run("rm -rf /app/init-folder");
+		run("chmod 755 /app/init");
+	
+		expose("22");
+		expose("80");
+		expose("443");
 		expose("8082");
-		cmd("gitlab-ctl reconfigure");
+
+		volume("/home/git/data");
+		volume("/var/log/gitlab");
+
+		/*
+		 * Connection to Database is missing
+		 */
+
+		cmd("cd /app/ && sh init");
 	},
 	prepare: function(config, container) {
 		config.webUrl = "http://" + hostname + ".local" + "/gitlab";
