@@ -260,7 +260,6 @@ image(imageName, {
 	 		" && mysqladmin create gitlabhq_production" + 
 	 		" && service mysql stop");
 
-
 		/*
 		 * Install GitLab
 		 */
