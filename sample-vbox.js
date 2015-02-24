@@ -252,10 +252,14 @@ image(imageName, {
 		/*
 	 	 * Install Database
 	 	 */
-	 	 run("apt-get update");
-	 	 run("apt-get install -y mysql-server");
-	 	 run("apt-get install -y php5-mysql");
-	 	 run("mysqladmin creategitlabhq_production")
+	 	run("apt-get update");
+	 	run("apt-get install -y mysql-server");
+	 	run("apt-get install -y php5-mysql");
+	 	run("chmod -R 777 /var/lib/mysql/");
+	 	run("service mysql start" +
+	 		" && mysqladmin create gitlabhq_production" + 
+	 		" && service mysql stop");
+
 
 		/*
 		 * Install GitLab
@@ -301,12 +305,16 @@ image(imageName, {
 		expose("443");
 		expose("8082");
 
+		/*
+		 * Enable Volumes when everything is working
+		 */
 		volume("/home/git/data");
 		volume("/var/log/gitlab");
 
 		/*
-		 * Connection to Database is missing
+		 * Connection to Database 
 		 */
+		//is missing
 
 		cmd("cd /app/ && sh init");
 	},
