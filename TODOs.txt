@@ -1,0 +1,10 @@
+##########################
+# Todo's: Floto-Example  #
+# 27.02.2015		 #
+##########################
+
+1. accessibility of containers only with NGINX
+
+2. connection GitLab and it's own Database
+
+3. connection GitLab and Jenkins with Trigger

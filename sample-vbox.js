@@ -257,8 +257,9 @@ image(imageName, {
 	 	run("apt-get install -y php5-mysql");
 	 	run("chmod -R 777 /var/lib/mysql/");
 	 	run("service mysql start" +
-	 		" && mysqladmin create gitlabhq_production" + 
-	 		" && service mysql stop");
+	 		" && mysqladmin create gitlabhq_production");
+	 	run("service mysql start" +
+	 		" && mysqladmin create gitlabhq_development");
 
 		/*
 		 * Install GitLab
@@ -305,7 +306,7 @@ image(imageName, {
 		expose("8082");
 
 		/*
-		 * Enable Volumes when everything is working
+		 * Enable Volumes
 		 */
 		volume("/home/git/data");
 		volume("/var/log/gitlab");
@@ -313,8 +314,16 @@ image(imageName, {
 		/*
 		 * Connection to Database 
 		 */
-		//is missing
+		
+		run("rm /home/git/gitlab/config/database.yml.mysql");
+		addTemplate(__DIR__+"/templates/GitLab/database.yml", "/home/git/gitlab/config/database.yml.mysql", "");
+		run("rm /home/git/gitlab/config/database.yml");
+		run("cp /home/git/gitlab/config/database.yml.mysql /home/git/gitlab/config/database.yml");
+		run("chmod 777 /home/git/gitlab/config/database.yml");
 
+		/*
+		 * Start Gitlab
+		 */
 		cmd("cd /app/ && sh init");
 	},
 	prepare: function(config, container) {
