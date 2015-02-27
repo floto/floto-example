@@ -388,3 +388,12 @@ Put following in the Argumentes:
 ``` 
 
 when you run this configuration you can open floto in your webbrowser with http://localhost:40004/
+
+You can reach the services on following ports:
+|Service			| Port |
+|-------------------|-----:|
+| Docker-REST		| 2375 |
+| Jenkins 			| 8080 |
+| NGINX 			| 80   |
+| Nexus 			| 8081 |
+| GitLab 			| 8082 |
